@@ -5,6 +5,7 @@ import { PartyComparisonTable } from "@/components/PartyComparisonTable";
 import {
   extractTags,
   fetchVotingsByCaseQuery,
+  getVotingCase,
   searchCases,
 } from "@/lib/oda";
 import { cacheCase } from "@/lib/cache";
@@ -162,26 +163,29 @@ export default async function TopicPage({
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {votings.slice(0, 30).map((v) => (
-                  <li key={v.id}>
-                    <Link
-                      href={`/afstemning/${v.id}`}
-                      className="block py-3 transition hover:bg-muted/40"
-                    >
-                      <p className="line-clamp-2 font-medium">
-                        {v.Sag?.titelkort ??
-                          v.Sag?.titel ??
-                          `Afstemning #${v.id}`}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(v.opdateringsdato)}
-                        {v.vedtaget != null
-                          ? ` · ${v.vedtaget ? "Vedtaget" : "Forkastet"}`
-                          : ""}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
+                {votings.slice(0, 30).map((v) => {
+                  const sag = getVotingCase(v);
+                  return (
+                    <li key={v.id}>
+                      <Link
+                        href={`/afstemning/${v.id}`}
+                        className="block py-3 transition hover:bg-muted/40"
+                      >
+                        <p className="line-clamp-2 font-medium">
+                          {sag?.titelkort ??
+                            sag?.titel ??
+                            `Afstemning #${v.id}`}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDate(v.opdateringsdato)}
+                          {v.vedtaget != null
+                            ? ` · ${v.vedtaget ? "Vedtaget" : "Forkastet"}`
+                            : ""}
+                        </p>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardBody>

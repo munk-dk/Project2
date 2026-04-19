@@ -12,6 +12,12 @@ import type {
   VoteStats,
 } from "./types";
 
+// Hjælpefunktion: ODA linker Afstemning → Sagstrin → Sag, ikke direkte.
+// Brug denne i UI til at få fat i sagen uanset niveau.
+export function getVotingCase(voting: OdaVoting): OdaCase | null {
+  return voting.Sagstrin?.Sag ?? voting.Sag ?? null;
+}
+
 const BASE_URL = process.env.NEXT_PUBLIC_ODA_BASE_URL ?? "https://oda.ft.dk/api";
 
 interface OdaListResponse<T> {
@@ -121,7 +127,7 @@ export async function fetchVotesForActor(
 ): Promise<OdaVote[]> {
   const data = await odaFetch<OdaVote>("Stemme", {
     filter: `aktørid eq ${actorId}`,
-    expand: "Afstemning,Afstemning/Sag",
+    expand: "Afstemning/Sagstrin/Sag",
     orderby: "opdateringsdato desc",
     top,
   });
@@ -130,7 +136,7 @@ export async function fetchVotesForActor(
 
 export async function fetchRecentVotings(top = 20): Promise<OdaVoting[]> {
   const data = await odaFetch<OdaVoting>("Afstemning", {
-    expand: "Sag",
+    expand: "Sagstrin/Sag",
     orderby: "opdateringsdato desc",
     top,
   });
@@ -139,7 +145,7 @@ export async function fetchRecentVotings(top = 20): Promise<OdaVoting[]> {
 
 export async function fetchVoting(id: number | string): Promise<OdaVoting | null> {
   return odaFetchOne<OdaVoting>("Afstemning", id, {
-    expand: "Sag,Stemme,Stemme/Aktør",
+    expand: "Sagstrin/Sag,Stemme/Aktør",
   });
 }
 
@@ -160,10 +166,13 @@ export async function fetchVotingsByCaseQuery(
 ): Promise<OdaVoting[]> {
   const cases = await searchCases(query, 30);
   if (cases.length === 0) return [];
-  const orFilter = cases.map((c) => `Sag/id eq ${c.id}`).join(" or ");
+  // Afstemning linker til Sag via Sagstrin, så vi filtrerer på Sagstrin/sagid.
+  const orFilter = cases
+    .map((c) => `Sagstrin/sagid eq ${c.id}`)
+    .join(" or ");
   const data = await odaFetch<OdaVoting>("Afstemning", {
     filter: orFilter,
-    expand: "Sag,Stemme/Aktør",
+    expand: "Sagstrin/Sag,Stemme/Aktør",
     orderby: "opdateringsdato desc",
     top,
   });

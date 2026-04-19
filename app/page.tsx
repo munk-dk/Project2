@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SearchBar } from "@/components/SearchBar";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { fetchRecentVotings } from "@/lib/oda";
+import { fetchRecentVotings, getVotingCase } from "@/lib/oda";
 import { formatDate } from "@/lib/utils";
 import { TOPICS } from "@/lib/topics";
 
@@ -91,29 +91,32 @@ export default async function HomePage() {
         ) : (
           <Card>
             <ul className="divide-y divide-border">
-              {votings.map((v) => (
-                <li key={v.id}>
-                  <Link
-                    href={`/afstemning/${v.id}`}
-                    className="flex items-start justify-between gap-3 px-5 py-4 transition hover:bg-muted/40"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 font-medium">
-                        {v.Sag?.titelkort ??
-                          v.Sag?.titel ??
-                          v.konklusion ??
-                          `Afstemning #${v.id}`}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatDate(v.opdateringsdato)}
-                        {v.vedtaget != null
-                          ? ` · ${v.vedtaget ? "Vedtaget" : "Forkastet"}`
-                          : ""}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
+              {votings.map((v) => {
+                const sag = getVotingCase(v);
+                return (
+                  <li key={v.id}>
+                    <Link
+                      href={`/afstemning/${v.id}`}
+                      className="flex items-start justify-between gap-3 px-5 py-4 transition hover:bg-muted/40"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 font-medium">
+                          {sag?.titelkort ??
+                            sag?.titel ??
+                            v.konklusion ??
+                            `Afstemning #${v.id}`}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatDate(v.opdateringsdato)}
+                          {v.vedtaget != null
+                            ? ` · ${v.vedtaget ? "Vedtaget" : "Forkastet"}`
+                            : ""}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}

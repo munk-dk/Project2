@@ -4,7 +4,12 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { PartyTag } from "@/components/PartyTag";
 import { StatsGrid } from "@/components/StatsGrid";
 import { VoteList, type VoteListItem } from "@/components/VoteList";
-import { aggregateVotes, fetchActor, fetchVotesForActor } from "@/lib/oda";
+import {
+  aggregateVotes,
+  fetchActor,
+  fetchVotesForActor,
+  getVotingCase,
+} from "@/lib/oda";
 import { initials } from "@/lib/utils";
 import { resolveParty } from "@/lib/parties";
 import { cacheMember, getCachedMember } from "@/lib/cache";
@@ -49,18 +54,21 @@ export default async function PoliticianPage({
   const stats = aggregateVotes(votes);
   const info = resolveParty(actor.gruppenavnkort);
 
-  const items: VoteListItem[] = votes.map((v) => ({
-    voteId: v.id,
-    votingId: v.afstemningid,
-    typeid: v.typeid as VoteType,
-    title:
-      v.Afstemning?.Sag?.titelkort ??
-      v.Afstemning?.Sag?.titel ??
-      v.Afstemning?.konklusion ??
-      `Afstemning #${v.afstemningid}`,
-    date: v.Afstemning?.opdateringsdato ?? v.opdateringsdato,
-    caseNumber: v.Afstemning?.Sag?.nummer,
-  }));
+  const items: VoteListItem[] = votes.map((v) => {
+    const sag = v.Afstemning ? getVotingCase(v.Afstemning) : null;
+    return {
+      voteId: v.id,
+      votingId: v.afstemningid,
+      typeid: v.typeid as VoteType,
+      title:
+        sag?.titelkort ??
+        sag?.titel ??
+        v.Afstemning?.konklusion ??
+        `Afstemning #${v.afstemningid}`,
+      date: v.Afstemning?.opdateringsdato ?? v.opdateringsdato,
+      caseNumber: sag?.nummer,
+    };
+  });
 
   return (
     <div className="space-y-8">

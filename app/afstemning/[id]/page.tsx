@@ -6,7 +6,7 @@ import { PartyTag } from "@/components/PartyTag";
 import { PartyVoteBar } from "@/components/PartyVoteBar";
 import { StatsGrid } from "@/components/StatsGrid";
 import { Badge } from "@/components/ui/Badge";
-import { aggregateVotes, fetchVoting } from "@/lib/oda";
+import { aggregateVotes, fetchVoting, getVotingCase } from "@/lib/oda";
 import { formatDate } from "@/lib/utils";
 import {
   VOTE_LABEL,
@@ -25,10 +25,11 @@ export async function generateMetadata({
   const id = Number(params.id);
   if (!Number.isFinite(id)) return { title: "Afstemning" };
   const voting = await fetchVoting(id).catch(() => null);
+  const sag = voting ? getVotingCase(voting) : null;
   return {
     title:
-      voting?.Sag?.titelkort ??
-      voting?.Sag?.titel ??
+      sag?.titelkort ??
+      sag?.titel ??
       `Afstemning #${params.id}`,
   };
 }
@@ -73,10 +74,11 @@ export default async function VotingPage({
   const votes = voting.Stemme ?? [];
   const stats = aggregateVotes(votes);
   const partyStats = groupByParty(votes);
+  const sag = getVotingCase(voting);
 
   const title =
-    voting.Sag?.titelkort ??
-    voting.Sag?.titel ??
+    sag?.titelkort ??
+    sag?.titel ??
     voting.konklusion ??
     `Afstemning #${voting.id}`;
 
@@ -85,7 +87,7 @@ export default async function VotingPage({
       <section className="rounded-xl border border-border bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>{formatDate(voting.opdateringsdato)}</span>
-          {voting.Sag?.nummer && <span>· {voting.Sag.nummer}</span>}
+          {sag?.nummer && <span>· {sag.nummer}</span>}
           {voting.vedtaget != null && (
             <span
               className={`rounded px-2 py-0.5 font-medium ${
@@ -101,9 +103,9 @@ export default async function VotingPage({
         <h1 className="mt-2 text-2xl font-bold tracking-tight md:text-3xl">
           {title}
         </h1>
-        {voting.Sag?.resume && (
+        {sag?.resume && (
           <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-            {voting.Sag.resume.replace(/<[^>]+>/g, " ").slice(0, 600)}
+            {sag.resume.replace(/<[^>]+>/g, " ").slice(0, 600)}
           </p>
         )}
         {voting.konklusion && voting.konklusion !== title && (

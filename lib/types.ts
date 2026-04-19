@@ -43,6 +43,14 @@ export interface OdaCase {
   opdateringsdato?: string | null;
 }
 
+export interface OdaCaseStep {
+  id: number;
+  sagid?: number | null;
+  titel?: string | null;
+  typeid?: number | null;
+  Sag?: OdaCase | null;
+}
+
 export interface OdaVoting {
   id: number;
   konklusion?: string | null;
@@ -53,6 +61,7 @@ export interface OdaVoting {
   sagstrinid?: number | null;
   opdateringsdato?: string | null;
   Sag?: OdaCase | null;
+  Sagstrin?: OdaCaseStep | null;
   Stemme?: OdaVote[];
 }
 
