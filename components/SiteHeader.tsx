@@ -18,6 +18,9 @@ export function SiteHeader() {
           <Link href="/" className="hover:text-foreground">
             Forside
           </Link>
+          <Link href="/politikere" className="hover:text-foreground">
+            Politikere
+          </Link>
           <Link
             href="https://oda.ft.dk/Help"
             target="_blank"

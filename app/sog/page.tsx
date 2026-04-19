@@ -45,9 +45,19 @@ export default async function SearchPage({
               </CardHeader>
               <CardBody>
                 {actors.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Ingen politikere matcher &quot;{q}&quot;.
-                  </p>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      Ingen politikere matcher &quot;{q}&quot;. Det kan skyldes
+                      stavning eller at personen ikke længere sidder i
+                      Folketinget.
+                    </p>
+                    <Link
+                      href="/politikere"
+                      className="inline-flex rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/40"
+                    >
+                      Se alle folketingsmedlemmer →
+                    </Link>
+                  </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {actors.map((a) => (

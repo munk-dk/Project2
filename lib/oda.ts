@@ -94,9 +94,21 @@ export async function fetchActor(id: number | string): Promise<OdaActor | null> 
 }
 
 export async function searchActors(query: string, top = 20): Promise<OdaActor[]> {
-  const safe = query.replace(/'/g, "''");
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/'/g, "''"))
+    .filter((t) => t.length > 1);
+  if (tokens.length === 0) return [];
+
+  // Case-insensitive match via tolower(). Alle tokens skal findes i navn.
+  const nameFilter = tokens
+    .map((t) => `substringof('${t}',tolower(navn))`)
+    .join(" and ");
+
   const data = await odaFetch<OdaActor>("Aktør", {
-    filter: `typeid eq 5 and substringof('${safe}',navn)`,
+    filter: `typeid eq 5 and ${nameFilter}`,
     orderby: "efternavn asc",
     top,
   });
@@ -132,9 +144,10 @@ export async function fetchVoting(id: number | string): Promise<OdaVoting | null
 }
 
 export async function searchCases(query: string, top = 20): Promise<OdaCase[]> {
-  const safe = query.replace(/'/g, "''");
+  const safe = query.trim().toLowerCase().replace(/'/g, "''");
+  if (!safe) return [];
   const data = await odaFetch<OdaCase>("Sag", {
-    filter: `substringof('${safe}',titel) or substringof('${safe}',titelkort)`,
+    filter: `substringof('${safe}',tolower(titel)) or substringof('${safe}',tolower(titelkort))`,
     orderby: "opdateringsdato desc",
     top,
   });

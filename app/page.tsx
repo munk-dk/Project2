@@ -22,6 +22,32 @@ export default async function HomePage() {
         <div className="mt-6 max-w-2xl">
           <SearchBar />
         </div>
+        <div className="mt-4 flex flex-wrap gap-2 text-sm">
+          <Link
+            href="/politikere"
+            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+          >
+            Se alle folketingsmedlemmer →
+          </Link>
+          <Link
+            href="/emne/klima"
+            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+          >
+            Emne: klima
+          </Link>
+          <Link
+            href="/emne/skat"
+            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+          >
+            Emne: skat
+          </Link>
+          <Link
+            href="/emne/sundhed"
+            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+          >
+            Emne: sundhed
+          </Link>
+        </div>
       </section>
 
       <section>
