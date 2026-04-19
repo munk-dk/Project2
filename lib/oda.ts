@@ -162,6 +162,35 @@ export async function fetchVoting(id: number | string): Promise<OdaVoting | null
   });
 }
 
+export async function fetchCase(id: number | string): Promise<OdaCase | null> {
+  return odaFetchOne<OdaCase>("Sag", id);
+}
+
+// Hent alle afstemninger for en konkret sag ved at gå gennem Sagstrin.
+export async function fetchVotingsForCase(
+  caseId: number | string,
+): Promise<OdaVoting[]> {
+  const sagstrinData = await odaFetch<{ id: number }>("Sagstrin", {
+    filter: `sagid eq ${caseId}`,
+    top: 100,
+  }).catch(() => ({ value: [] }));
+  const ids = sagstrinData.value.map((s) => s.id);
+  if (ids.length === 0) return [];
+
+  const filters = batchOrFilter(ids, (id) => `sagstrinid eq ${id}`);
+  const results = await Promise.all(
+    filters.map((filter) =>
+      odaFetch<OdaVoting>("Afstemning", {
+        filter,
+        expand: "Sagstrin/Sag,Stemme/Aktør",
+        orderby: "opdateringsdato desc",
+        top: 100,
+      }).catch(() => ({ value: [] })),
+    ),
+  );
+  return results.flatMap((r) => r.value);
+}
+
 export async function searchCases(query: string, top = 20): Promise<OdaCase[]> {
   const safe = query.trim().toLowerCase().replace(/'/g, "''");
   if (!safe) return [];

@@ -203,15 +203,22 @@ export default async function TopicPage({
                 Ingen sager fundet.
               </p>
             ) : (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-border">
                 {cases.slice(0, 20).map((c) => (
-                  <li key={c.id} className="text-sm">
-                    <p className="font-medium">{c.titelkort ?? c.titel}</p>
-                    {c.nummer && (
-                      <p className="text-xs text-muted-foreground">
-                        {c.nummer}
+                  <li key={c.id}>
+                    <Link
+                      href={`/sag/${c.id}`}
+                      className="block py-3 transition hover:bg-muted/40"
+                    >
+                      <p className="text-sm font-medium">
+                        {c.titelkort ?? c.titel}
                       </p>
-                    )}
+                      {c.nummer && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {c.nummer}
+                        </p>
+                      )}
+                    </Link>
                   </li>
                 ))}
               </ul>
