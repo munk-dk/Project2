@@ -143,6 +143,19 @@ export async function fetchRecentVotings(top = 20): Promise<OdaVoting[]> {
   return data.value;
 }
 
+// Samme som fetchRecentVotings men med alle individuelle stemmer og
+// aktør-info inkluderet. Tungere kald - brug kun når vi aggregerer.
+export async function fetchRecentVotingsWithVotes(
+  top = 30,
+): Promise<OdaVoting[]> {
+  const data = await odaFetch<OdaVoting>("Afstemning", {
+    expand: "Sagstrin/Sag,Stemme/Aktør",
+    orderby: "opdateringsdato desc",
+    top,
+  });
+  return data.value;
+}
+
 export async function fetchVoting(id: number | string): Promise<OdaVoting | null> {
   return odaFetchOne<OdaVoting>("Afstemning", id, {
     expand: "Sagstrin/Sag,Stemme/Aktør",

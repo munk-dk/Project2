@@ -25,10 +25,16 @@ export default async function HomePage() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2 text-sm">
           <Link
+            href="/partier"
+            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+          >
+            Sådan stemmer partierne →
+          </Link>
+          <Link
             href="/politikere"
             className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
           >
-            Se alle folketingsmedlemmer →
+            Alle folketingsmedlemmer →
           </Link>
           <Link
             href="/emner"
