@@ -160,23 +160,74 @@ export async function searchCases(query: string, top = 20): Promise<OdaCase[]> {
   return data.value;
 }
 
+// Split et OData-filter i batches for at holde URL'en under ~1800 tegn.
+function batchOrFilter<T>(
+  items: T[],
+  build: (item: T) => string,
+  maxLen = 1800,
+): string[] {
+  const batches: string[] = [];
+  let current: string[] = [];
+  let currentLen = 0;
+  for (const item of items) {
+    const expr = build(item);
+    const addLen = expr.length + 4; // " or "
+    if (current.length > 0 && currentLen + addLen > maxLen) {
+      batches.push(current.join(" or "));
+      current = [expr];
+      currentLen = expr.length;
+    } else {
+      current.push(expr);
+      currentLen += addLen;
+    }
+  }
+  if (current.length) batches.push(current.join(" or "));
+  return batches;
+}
+
 export async function fetchVotingsByCaseQuery(
   query: string,
   top = 20,
 ): Promise<OdaVoting[]> {
   const cases = await searchCases(query, 30);
   if (cases.length === 0) return [];
-  // Afstemning linker til Sag via Sagstrin, så vi filtrerer på Sagstrin/sagid.
-  const orFilter = cases
-    .map((c) => `Sagstrin/sagid eq ${c.id}`)
-    .join(" or ");
-  const data = await odaFetch<OdaVoting>("Afstemning", {
-    filter: orFilter,
-    expand: "Sagstrin/Sag,Stemme/Aktør",
-    orderby: "opdateringsdato desc",
-    top,
-  });
-  return data.value;
+
+  // Trin 1: find alle Sagstrin for de fundne sager.
+  // Nested filter (Sagstrin/sagid eq X) virker ikke pålideligt på ODA,
+  // så vi deler i to kald.
+  const stepFilters = batchOrFilter(cases, (c) => `sagid eq ${c.id}`);
+  const sagstrinResults = await Promise.all(
+    stepFilters.map((filter) =>
+      odaFetch<{ id: number; sagid?: number | null }>("Sagstrin", {
+        filter,
+        top: 400,
+      }).catch(() => ({ value: [] })),
+    ),
+  );
+  const sagstrinIds = sagstrinResults.flatMap((r) => r.value.map((s) => s.id));
+  if (sagstrinIds.length === 0) return [];
+
+  // Trin 2: find Afstemninger for disse sagstrin.
+  const voteFilters = batchOrFilter(sagstrinIds, (id) => `sagstrinid eq ${id}`);
+  const votingResults = await Promise.all(
+    voteFilters.map((filter) =>
+      odaFetch<OdaVoting>("Afstemning", {
+        filter,
+        expand: "Sagstrin/Sag,Stemme/Aktør",
+        orderby: "opdateringsdato desc",
+        top: Math.max(top, 50),
+      }).catch(() => ({ value: [] })),
+    ),
+  );
+  const all = votingResults.flatMap((r) => r.value);
+  // Dedupliker og sortér efter nyeste
+  const byId = new Map<number, OdaVoting>();
+  for (const v of all) byId.set(v.id, v);
+  return Array.from(byId.values())
+    .sort((a, b) =>
+      (b.opdateringsdato ?? "").localeCompare(a.opdateringsdato ?? ""),
+    )
+    .slice(0, top);
 }
 
 // Aggregér en liste af stemmer til samlet statistik.
