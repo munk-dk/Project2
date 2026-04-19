@@ -3,6 +3,7 @@ import { SearchBar } from "@/components/SearchBar";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { fetchRecentVotings } from "@/lib/oda";
 import { formatDate } from "@/lib/utils";
+import { TOPICS } from "@/lib/topics";
 
 export const revalidate = 3600;
 
@@ -30,23 +31,42 @@ export default async function HomePage() {
             Se alle folketingsmedlemmer →
           </Link>
           <Link
-            href="/emne/klima"
+            href="/emner"
             className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
           >
-            Emne: klima
+            Alle emner →
           </Link>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Udforsk efter emne
+          </h2>
           <Link
-            href="/emne/skat"
-            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
+            href="/emner"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
-            Emne: skat
+            Se alle emner →
           </Link>
-          <Link
-            href="/emne/sundhed"
-            className="rounded-full border border-border bg-white px-3 py-1.5 font-medium text-foreground transition hover:bg-muted/40"
-          >
-            Emne: sundhed
-          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {TOPICS.slice(0, 8).map((t) => (
+            <Link
+              key={t.slug}
+              href={`/emne/${t.slug}`}
+              className="rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md"
+            >
+              <div className="text-2xl" aria-hidden>
+                {t.emoji}
+              </div>
+              <p className="mt-2 font-medium">{t.name}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                {t.description}
+              </p>
+            </Link>
+          ))}
         </div>
       </section>
 

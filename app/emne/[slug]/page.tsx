@@ -9,7 +9,9 @@ import {
 } from "@/lib/oda";
 import { cacheCase } from "@/lib/cache";
 import { formatDate } from "@/lib/utils";
-import type { PartyVoteStats } from "@/lib/types";
+import { searchTermsForTopic, topicBySlug } from "@/lib/topics";
+import type { OdaVoting, PartyVoteStats } from "@/lib/types";
+import { resolveParty } from "@/lib/parties";
 
 export const revalidate = 3600;
 
@@ -18,34 +20,85 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const q = decodeURIComponent(params.slug).replace(/-/g, " ");
-  return { title: `Emne: ${q}` };
+  const topic = topicBySlug(params.slug);
+  const title =
+    topic?.name ?? decodeURIComponent(params.slug).replace(/-/g, " ");
+  return { title: `Emne: ${title}` };
 }
 
-type PartyAgg = PartyVoteStats;
+function aggregateParties(votings: OdaVoting[]): PartyVoteStats[] {
+  const byParty = new Map<string, PartyVoteStats>();
+  for (const voting of votings) {
+    for (const stemme of voting.Stemme ?? []) {
+      const key = stemme.Aktør?.gruppenavnkort ?? "Ukendt";
+      const row =
+        byParty.get(key) ??
+        ({
+          party: key,
+          for: 0,
+          against: 0,
+          abstain: 0,
+          absent: 0,
+          total: 0,
+        } satisfies PartyVoteStats);
+      if (stemme.typeid === 1) row.for++;
+      else if (stemme.typeid === 2) row.against++;
+      else if (stemme.typeid === 3) row.absent++;
+      else if (stemme.typeid === 4) row.abstain++;
+      row.total++;
+      byParty.set(key, row);
+    }
+  }
+  // Filtrér tomme og sortér efter partis officielle farveliste
+  return Array.from(byParty.values())
+    .filter((r) => r.total > 0)
+    .sort((a, b) => {
+      const ak = resolveParty(a.party).key;
+      const bk = resolveParty(b.party).key;
+      if (ak === "UNKNOWN" && bk !== "UNKNOWN") return 1;
+      if (bk === "UNKNOWN" && ak !== "UNKNOWN") return -1;
+      return b.total - a.total;
+    });
+}
 
 export default async function TopicPage({
   params,
 }: {
   params: { slug: string };
 }) {
-  const query = decodeURIComponent(params.slug).replace(/-/g, " ");
+  const topic = topicBySlug(params.slug);
+  const displayName =
+    topic?.name ?? decodeURIComponent(params.slug).replace(/-/g, " ");
+  const searchTerms = searchTermsForTopic(params.slug);
 
-  const [cases, votings] = await Promise.all([
-    searchCases(query, 20).catch(() => []),
-    fetchVotingsByCaseQuery(query, 50).catch(() => []),
-  ]);
+  // Hent sager og afstemninger for hver søgeterm og flet dem.
+  const results = await Promise.all(
+    searchTerms.map((term) =>
+      Promise.all([
+        searchCases(term, 15).catch(() => []),
+        fetchVotingsByCaseQuery(term, 10).catch(() => []),
+      ]),
+    ),
+  );
 
-  // Cache sager med udledte tags (fase 2-forberedelse).
+  const casesMap = new Map<number, (typeof results)[0][0][0]>();
+  const votingsMap = new Map<number, OdaVoting>();
+  for (const [cases, votings] of results) {
+    for (const c of cases) casesMap.set(c.id, c);
+    for (const v of votings) votingsMap.set(v.id, v);
+  }
+  const cases = Array.from(casesMap.values());
+  const votings = Array.from(votingsMap.values()).sort((a, b) => {
+    const ad = a.opdateringsdato ?? "";
+    const bd = b.opdateringsdato ?? "";
+    return bd.localeCompare(ad);
+  });
+
   await Promise.all(
     cases.map((c) => cacheCase(c, extractTags(c.titel))),
   ).catch(() => undefined);
 
-  // Aggregér stemmer pr. parti. Bemærk: Stemme-entiteterne her mangler
-  // Aktør-expand (kostbart ved mange afstemninger), så vi viser kun hvor
-  // mange afstemninger der er fundet, og lader PartyComparisonTable stå
-  // klar til når backend-sync populerer `votes`-tabellen med parti.
-  const rows: PartyAgg[] = [];
+  const partyRows = aggregateParties(votings);
 
   return (
     <div className="space-y-8">
@@ -53,36 +106,45 @@ export default async function TopicPage({
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           Emne
         </p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl capitalize">
-          {query}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          {cases.length} sager og {votings.length} afstemninger fundet på dette
-          emne.
+        <div className="mt-1 flex items-start gap-3">
+          {topic?.emoji && (
+            <span className="text-3xl" aria-hidden>
+              {topic.emoji}
+            </span>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              {displayName}
+            </h1>
+            {topic?.description && (
+              <p className="mt-1 text-muted-foreground">{topic.description}</p>
+            )}
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {cases.length} sager og {votings.length} afstemninger fundet.
         </p>
       </section>
 
       <section>
         <Card>
           <CardHeader>
-            <CardTitle>Partivis stemmefordeling</CardTitle>
+            <CardTitle>Sådan har partierne stemt samlet</CardTitle>
           </CardHeader>
           <CardBody>
-            {rows.length === 0 ? (
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  Partivis sammenligning er under opbygning. Den kræver at alle
-                  individuelle stemmer på tværs af afstemningerne hentes og
-                  berigges med partitilhørsforhold.
-                </p>
-                <p>
-                  Indtil Supabase-synkroniseringen kører, se listen over sager
-                  og afstemninger nedenfor — klik ind på hver for at se partivis
-                  oversigt.
-                </p>
-              </div>
+            {partyRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Ingen partistemmer fundet. Prøv et andet emne eller søgeord.
+              </p>
             ) : (
-              <PartyComparisonTable rows={rows} />
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Tallene er summen af alle individuelle stemmer på tværs af{" "}
+                  {votings.length} afstemninger om dette emne. Klik en kolonne
+                  for at sortere.
+                </p>
+                <PartyComparisonTable rows={partyRows} />
+              </>
             )}
           </CardBody>
         </Card>
@@ -91,12 +153,12 @@ export default async function TopicPage({
       <section>
         <Card>
           <CardHeader>
-            <CardTitle>Afstemninger på dette emne</CardTitle>
+            <CardTitle>Afstemninger</CardTitle>
           </CardHeader>
           <CardBody>
             {votings.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Ingen afstemninger fundet for &quot;{query}&quot;.
+                Ingen afstemninger fundet for &quot;{displayName}&quot;.
               </p>
             ) : (
               <ul className="divide-y divide-border">
@@ -134,15 +196,13 @@ export default async function TopicPage({
           <CardBody>
             {cases.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Ingen sager fundet for &quot;{query}&quot;.
+                Ingen sager fundet.
               </p>
             ) : (
               <ul className="space-y-3">
-                {cases.map((c) => (
+                {cases.slice(0, 20).map((c) => (
                   <li key={c.id} className="text-sm">
-                    <p className="font-medium">
-                      {c.titelkort ?? c.titel}
-                    </p>
+                    <p className="font-medium">{c.titelkort ?? c.titel}</p>
                     {c.nummer && (
                       <p className="text-xs text-muted-foreground">
                         {c.nummer}

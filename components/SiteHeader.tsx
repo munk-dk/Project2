@@ -21,6 +21,9 @@ export function SiteHeader() {
           <Link href="/politikere" className="hover:text-foreground">
             Politikere
           </Link>
+          <Link href="/emner" className="hover:text-foreground">
+            Emner
+          </Link>
           <Link
             href="https://oda.ft.dk/Help"
             target="_blank"

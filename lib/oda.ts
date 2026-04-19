@@ -156,21 +156,17 @@ export async function searchCases(query: string, top = 20): Promise<OdaCase[]> {
 
 export async function fetchVotingsByCaseQuery(
   query: string,
-  top = 50,
+  top = 20,
 ): Promise<OdaVoting[]> {
-  const cases = await searchCases(query, 20);
+  const cases = await searchCases(query, 30);
   if (cases.length === 0) return [];
-  const ids = cases.map((c) => `sagstrinid ne null and Sag/id eq ${c.id}`);
-  // Simplificeret: filtrer på Sag/id via navigation - OData v3 understøtter "any"/"all".
-  // Vi bruger et filter med "or" pr. sags-id.
   const orFilter = cases.map((c) => `Sag/id eq ${c.id}`).join(" or ");
   const data = await odaFetch<OdaVoting>("Afstemning", {
     filter: orFilter,
-    expand: "Sag,Stemme",
+    expand: "Sag,Stemme/Aktør",
     orderby: "opdateringsdato desc",
     top,
   });
-  void ids;
   return data.value;
 }
 
