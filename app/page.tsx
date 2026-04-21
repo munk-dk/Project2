@@ -1,14 +1,42 @@
 import Link from "next/link";
 import { SearchBar } from "@/components/SearchBar";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { fetchRecentVotings, getVotingCase } from "@/lib/oda";
+import { PartyTag } from "@/components/PartyTag";
+import {
+  fetchRecentVotings,
+  fetchRecentVotingsWithVotes,
+  getVotingCase,
+} from "@/lib/oda";
+import { findRebels } from "@/lib/analytics";
 import { formatDate } from "@/lib/utils";
 import { TOPICS } from "@/lib/topics";
 
 export const revalidate = 3600;
 
 export default async function HomePage() {
-  const votings = await fetchRecentVotings(20).catch(() => []);
+  const [votings, votingsWithVotes] = await Promise.all([
+    fetchRecentVotings(20).catch(() => []),
+    fetchRecentVotingsWithVotes(15).catch(() => []),
+  ]);
+
+  // Ugens rebeller: saml rebelstemmer fra seneste afstemninger.
+  const rebelCounts = new Map<number, { name: string; party: string; count: number }>();
+  for (const v of votingsWithVotes) {
+    for (const r of findRebels(v)) {
+      const ex = rebelCounts.get(r.actorId);
+      if (ex) ex.count++;
+      else
+        rebelCounts.set(r.actorId, {
+          name: r.actorName,
+          party: r.party,
+          count: 1,
+        });
+    }
+  }
+  const topRebels = Array.from(rebelCounts.entries())
+    .map(([actorId, v]) => ({ actorId, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -44,6 +72,107 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
+
+      <section>
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">
+          Analyse &amp; overblik
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href="/partier/matrix"
+            className="group rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md"
+          >
+            <div className="text-2xl" aria-hidden>
+              🧮
+            </div>
+            <p className="mt-2 font-medium">Enigheds-matrix</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Hvor ofte stemmer hvert partipar ens?
+            </p>
+          </Link>
+          <Link
+            href="/analyse/rebeller"
+            className="group rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md"
+          >
+            <div className="text-2xl" aria-hidden>
+              🚩
+            </div>
+            <p className="mt-2 font-medium">Rebeller</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              MF&apos;ere der stemmer imod partilinjen.
+            </p>
+          </Link>
+          <Link
+            href="/partier"
+            className="group rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md"
+          >
+            <div className="text-2xl" aria-hidden>
+              📊
+            </div>
+            <p className="mt-2 font-medium">Parti-DNA</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Vælg et parti og se linje pr. emne.
+            </p>
+          </Link>
+          <Link
+            href="/emner"
+            className="group rounded-lg border border-border bg-card p-4 shadow-sm transition hover:shadow-md"
+          >
+            <div className="text-2xl" aria-hidden>
+              📌
+            </div>
+            <p className="mt-2 font-medium">Emne-dashboards</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Nøgletal, linje og rebeller pr. emne.
+            </p>
+          </Link>
+        </div>
+      </section>
+
+      {topRebels.length > 0 && (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Ugens rebeller</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Folketingsmedlemmer der oftest har stemt imod deres partis
+                flertal i de seneste afstemninger.
+              </p>
+              <ul className="divide-y divide-border">
+                {topRebels.map((r) => (
+                  <li
+                    key={r.actorId}
+                    className="flex items-center justify-between gap-3 py-2 text-sm"
+                  >
+                    <Link
+                      href={`/politiker/${r.actorId}`}
+                      className="truncate font-medium hover:underline"
+                    >
+                      {r.name}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <PartyTag party={r.party} />
+                      <span className="min-w-[2rem] text-right font-semibold">
+                        {r.count}×
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 text-right">
+                <Link
+                  href="/analyse/rebeller"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Se alle rebeller →
+                </Link>
+              </div>
+            </CardBody>
+          </Card>
+        </section>
+      )}
 
       <section>
         <div className="mb-4 flex items-end justify-between">

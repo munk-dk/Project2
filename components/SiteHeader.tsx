@@ -27,6 +27,12 @@ export function SiteHeader() {
           <Link href="/emner" className="hover:text-foreground">
             Emner
           </Link>
+          <Link href="/partier/matrix" className="hover:text-foreground">
+            Matrix
+          </Link>
+          <Link href="/analyse/rebeller" className="hover:text-foreground">
+            Rebeller
+          </Link>
           <Link
             href="https://oda.ft.dk/Help"
             target="_blank"

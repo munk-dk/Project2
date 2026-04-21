@@ -14,6 +14,8 @@ import {
 import { PARTIES, resolveParty, type PartyKey } from "@/lib/parties";
 import type { VoteStats } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
+import { findRebels, partyBlocVote } from "@/lib/analytics";
+import { TOPICS, searchTermsForTopic } from "@/lib/topics";
 
 export const revalidate = 3600;
 
@@ -49,7 +51,7 @@ export default async function PartyPage({
 
   const [members, votings] = await Promise.all([
     fetchCurrentMembers(250).catch(() => []),
-    fetchRecentVotingsWithVotes(20).catch(() => []),
+    fetchRecentVotingsWithVotes(60).catch(() => []),
   ]);
 
   const partyMembers = members.filter(
@@ -108,6 +110,62 @@ export default async function PartyPage({
     });
   }
 
+  // Parti-DNA: klassificér hver afstemning ind under kendte emner via titel-match,
+  // og tæl for/imod/splittet pr. emne for dette parti.
+  type TopicDna = {
+    slug: string;
+    name: string;
+    emoji?: string;
+    for: number;
+    against: number;
+    split: number;
+    absent: number;
+    total: number;
+  };
+  const dna: TopicDna[] = TOPICS.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    emoji: t.emoji,
+    for: 0,
+    against: 0,
+    split: 0,
+    absent: 0,
+    total: 0,
+  }));
+  for (const voting of votings) {
+    const sag = getVotingCase(voting);
+    const haystack = `${sag?.titel ?? ""} ${sag?.titelkort ?? ""} ${
+      voting.konklusion ?? ""
+    }`.toLowerCase();
+    if (!haystack.trim()) continue;
+    const { bloc } = partyBlocVote(voting, info.key);
+    for (const row of dna) {
+      const terms = searchTermsForTopic(row.slug);
+      const matched = terms.some((t) => haystack.includes(t.toLowerCase()));
+      if (!matched) continue;
+      row[bloc]++;
+      row.total++;
+    }
+  }
+  const dnaRows = dna.filter((r) => r.total > 0);
+
+  // Rebeller fra eget parti på tværs af seneste afstemninger.
+  const ownRebels = votings.flatMap((v) =>
+    findRebels(v)
+      .filter((r) => r.party === info.key)
+      .map((r) => ({ ...r, votingId: v.id })),
+  );
+  const rebelCounts = new Map<number, { name: string; count: number }>();
+  for (const r of ownRebels) {
+    const ex = rebelCounts.get(r.actorId);
+    if (ex) ex.count++;
+    else rebelCounts.set(r.actorId, { name: r.actorName, count: 1 });
+  }
+  const topOwnRebels = Array.from(rebelCounts.entries())
+    .map(([actorId, v]) => ({ actorId, ...v }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
   return (
     <div className="space-y-8">
       <section className="rounded-xl border border-border bg-white p-6 shadow-sm">
@@ -147,6 +205,107 @@ export default async function PartyPage({
           <StatsGrid stats={totals} />
         )}
       </section>
+
+      {dnaRows.length > 0 && (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Parti-DNA pr. emne</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Hvordan har <strong>{info.name}</strong> samlet stemt på hvert
+                emne? Baseret på {blocs.length} seneste afstemninger, klassificeret
+                efter titel. Klik et emne for dybdegående overblik.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="pb-2 pr-2">Emne</th>
+                      <th className="pb-2 pr-2 text-right">FOR</th>
+                      <th className="pb-2 pr-2 text-right">IMOD</th>
+                      <th className="pb-2 pr-2 text-right">Splittet</th>
+                      <th className="pb-2 pr-2 text-right">Fravær</th>
+                      <th className="pb-2 text-right">Linje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dnaRows
+                      .sort((a, b) => b.total - a.total)
+                      .map((r) => {
+                        const present = r.for + r.against;
+                        const lean =
+                          present === 0
+                            ? 0
+                            : Math.round((r.for / present) * 100);
+                        return (
+                          <tr key={r.slug} className="border-t border-border">
+                            <td className="py-2 pr-2">
+                              <Link
+                                href={`/emne/${r.slug}`}
+                                className="inline-flex items-center gap-1.5 hover:underline"
+                              >
+                                {r.emoji && <span aria-hidden>{r.emoji}</span>}
+                                <span>{r.name}</span>
+                              </Link>
+                            </td>
+                            <td className="py-2 pr-2 text-right text-green-700">
+                              {r.for}
+                            </td>
+                            <td className="py-2 pr-2 text-right text-red-700">
+                              {r.against}
+                            </td>
+                            <td className="py-2 pr-2 text-right text-amber-700">
+                              {r.split}
+                            </td>
+                            <td className="py-2 pr-2 text-right text-muted-foreground">
+                              {r.absent}
+                            </td>
+                            <td className="py-2 text-right">
+                              <LeanBar leanFor={lean} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </CardBody>
+          </Card>
+        </section>
+      )}
+
+      {topOwnRebels.length > 0 && (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Rebeller i {info.short}</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Medlemmer der oftest har stemt imod partiets flertal.
+              </p>
+              <ul className="divide-y divide-border">
+                {topOwnRebels.map((r) => (
+                  <li
+                    key={r.actorId}
+                    className="flex items-center justify-between gap-3 py-2 text-sm"
+                  >
+                    <Link
+                      href={`/politiker/${r.actorId}`}
+                      className="truncate font-medium hover:underline"
+                    >
+                      {r.name}
+                    </Link>
+                    <span className="font-semibold">{r.count}×</span>
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          </Card>
+        </section>
+      )}
 
       <section>
         <Card>
@@ -236,4 +395,21 @@ function BlocBadge({ bloc }: { bloc: BlocVote }) {
   if (bloc === "split")
     return <Badge tone="abstain">Splittet</Badge>;
   return <Badge tone="absent">Fraværende</Badge>;
+}
+
+// Viser en kompakt bar 0–100% hvor højre er FOR.
+function LeanBar({ leanFor }: { leanFor: number }) {
+  return (
+    <div className="inline-flex items-center gap-2">
+      <div className="relative h-2 w-24 overflow-hidden rounded-full bg-red-100">
+        <div
+          className="absolute inset-y-0 left-0 bg-green-500"
+          style={{ width: `${leanFor}%` }}
+        />
+      </div>
+      <span className="w-8 text-right text-xs text-muted-foreground">
+        {leanFor}%
+      </span>
+    </div>
+  );
 }

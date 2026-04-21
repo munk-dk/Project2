@@ -7,6 +7,8 @@ import { PartyVoteBar } from "@/components/PartyVoteBar";
 import { StatsGrid } from "@/components/StatsGrid";
 import { Badge } from "@/components/ui/Badge";
 import { aggregateVotes, fetchVoting, getVotingCase } from "@/lib/oda";
+import { findRebels } from "@/lib/analytics";
+import { RebelList } from "@/components/RebelList";
 import { formatDate } from "@/lib/utils";
 import {
   VOTE_LABEL,
@@ -75,6 +77,7 @@ export default async function VotingPage({
   const stats = aggregateVotes(votes);
   const partyStats = groupByParty(votes);
   const sag = getVotingCase(voting);
+  const rebels = findRebels(voting);
 
   const title =
     sag?.titelkort ??
@@ -138,6 +141,22 @@ export default async function VotingPage({
                 <PartyVoteBar key={p.party} party={p.party} stats={p} />
               ))
             )}
+          </CardBody>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Rebeller{rebels.length > 0 ? ` (${rebels.length})` : ""}
+            </CardTitle>
+          </CardHeader>
+          <CardBody>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Folketingsmedlemmer der stemte imod deres eget partis flertal.
+            </p>
+            <RebelList rebels={rebels} />
           </CardBody>
         </Card>
       </section>
