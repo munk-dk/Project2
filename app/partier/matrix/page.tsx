@@ -27,7 +27,7 @@ const PARTY_ORDER: PartyKey[] = [
 ];
 
 export default async function MatrixPage() {
-  const votings = await fetchRecentVotingsWithVotes(60).catch(() => []);
+  const votings = await fetchRecentVotingsWithVotes(30).catch(() => []);
   const parties = distinctParties(votings).filter((p) => p !== "UFG");
   const ordered = PARTY_ORDER.filter((p) => parties.includes(p));
   // Tilføj evt. partier vi ikke har i PARTY_ORDER til sidst.

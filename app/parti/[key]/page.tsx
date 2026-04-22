@@ -51,7 +51,7 @@ export default async function PartyPage({
 
   const [members, votings] = await Promise.all([
     fetchCurrentMembers(250).catch(() => []),
-    fetchRecentVotingsWithVotes(60).catch(() => []),
+    fetchRecentVotingsWithVotes(30).catch(() => []),
   ]);
 
   const partyMembers = members.filter(
