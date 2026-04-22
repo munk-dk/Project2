@@ -155,13 +155,21 @@ export async function fetchRecentVotingsWithVotes(
     orderby: "opdateringsdato desc",
     top,
   });
-  const res = await fetch(url, {
-    headers: { accept: "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`ODA request failed (${res.status}): ${url}`);
-  const data = (await res.json()) as OdaListResponse<OdaVoting>;
-  return data.value;
+  try {
+    const res = await fetch(url, {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error(`[ODA] ${res.status} on ${url}`);
+      return [];
+    }
+    const data = (await res.json()) as OdaListResponse<OdaVoting>;
+    return data.value ?? [];
+  } catch (err) {
+    console.error(`[ODA] fetch failed: ${url}`, err);
+    return [];
+  }
 }
 
 export async function fetchVoting(id: number | string): Promise<OdaVoting | null> {
