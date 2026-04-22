@@ -8,6 +8,7 @@ import { StatsGrid } from "@/components/StatsGrid";
 import { Badge } from "@/components/ui/Badge";
 import { aggregateVotes, fetchVoting, getVotingCase } from "@/lib/oda";
 import { findRebels } from "@/lib/analytics";
+import { resolveParty } from "@/lib/parties";
 import { RebelList } from "@/components/RebelList";
 import { formatDate } from "@/lib/utils";
 import {
@@ -59,7 +60,9 @@ function groupByParty(
     row.total++;
     byParty.set(key, row);
   }
-  return Array.from(byParty.values()).sort((a, b) => b.total - a.total);
+  return Array.from(byParty.values())
+    .filter((r) => resolveParty(r.party).key !== "UNKNOWN")
+    .sort((a, b) => b.total - a.total);
 }
 
 export default async function VotingPage({

@@ -60,14 +60,8 @@ function aggregateParties(votings: OdaVoting[]): PartyVoteStats[] {
   }
   // Filtrér tomme og sortér efter partis officielle farveliste
   return Array.from(byParty.values())
-    .filter((r) => r.total > 0)
-    .sort((a, b) => {
-      const ak = resolveParty(a.party).key;
-      const bk = resolveParty(b.party).key;
-      if (ak === "UNKNOWN" && bk !== "UNKNOWN") return 1;
-      if (bk === "UNKNOWN" && ak !== "UNKNOWN") return -1;
-      return b.total - a.total;
-    });
+    .filter((r) => r.total > 0 && resolveParty(r.party).key !== "UNKNOWN")
+    .sort((a, b) => b.total - a.total);
 }
 
 export default async function TopicPage({

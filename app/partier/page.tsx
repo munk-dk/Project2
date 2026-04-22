@@ -45,7 +45,7 @@ async function loadPartyStats(): Promise<{
     (k) => k !== "UNKNOWN" && k !== "UFG",
   );
   const stats = Array.from(byParty.values())
-    .filter((r) => r.total > 0)
+    .filter((r) => r.total > 0 && resolveParty(r.party).key !== "UNKNOWN")
     .sort((a, b) => {
       const ak = resolveParty(a.party).key;
       const bk = resolveParty(b.party).key;

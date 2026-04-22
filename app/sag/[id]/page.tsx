@@ -62,14 +62,8 @@ export default async function CasePage({
     byParty.set(key, row);
   }
   const partyStats = Array.from(byParty.values())
-    .filter((r) => r.total > 0)
-    .sort((a, b) => {
-      const ak = resolveParty(a.party).key;
-      const bk = resolveParty(b.party).key;
-      if (ak === "UNKNOWN" && bk !== "UNKNOWN") return 1;
-      if (bk === "UNKNOWN" && ak !== "UNKNOWN") return -1;
-      return b.total - a.total;
-    });
+    .filter((r) => r.total > 0 && resolveParty(r.party).key !== "UNKNOWN")
+    .sort((a, b) => b.total - a.total);
 
   return (
     <div className="space-y-8">
