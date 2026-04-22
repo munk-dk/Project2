@@ -21,7 +21,7 @@ interface RebelEntry {
 }
 
 export default async function RebelsPage() {
-  const votings = await fetchRecentVotingsWithVotes(40).catch(() => []);
+  const votings = await fetchRecentVotingsWithVotes(20).catch(() => []);
 
   const entries: RebelEntry[] = [];
   const counts = new Map<number, { name: string; party: string; count: number }>();
