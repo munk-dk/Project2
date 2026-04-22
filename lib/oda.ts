@@ -145,14 +145,22 @@ export async function fetchRecentVotings(top = 20): Promise<OdaVoting[]> {
 
 // Samme som fetchRecentVotings men med alle individuelle stemmer og
 // aktør-info inkluderet. Tungere kald - brug kun når vi aggregerer.
+// Bruger cache: "no-store" da svaret typisk er >2 MB og ikke kan
+// gemmes i Next.js data-cache.
 export async function fetchRecentVotingsWithVotes(
   top = 30,
 ): Promise<OdaVoting[]> {
-  const data = await odaFetch<OdaVoting>("Afstemning", {
+  const url = buildUrl("Afstemning", {
     expand: "Sagstrin/Sag,Stemme/Aktør",
     orderby: "opdateringsdato desc",
     top,
   });
+  const res = await fetch(url, {
+    headers: { accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`ODA request failed (${res.status}): ${url}`);
+  const data = (await res.json()) as OdaListResponse<OdaVoting>;
   return data.value;
 }
 
