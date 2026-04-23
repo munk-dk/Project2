@@ -165,7 +165,16 @@ export async function fetchRecentVotingsWithVotes(
       return [];
     }
     const data = (await res.json()) as OdaListResponse<OdaVoting>;
-    return data.value ?? [];
+    const value = data.value ?? [];
+    const first = value[0];
+    const stemmeCount = first?.Stemme?.length ?? 0;
+    const firstStemme = first?.Stemme?.[0];
+    console.log(
+      `[ODA] OK votings=${value.length} first.Stemme=${stemmeCount} ` +
+        `firstAktør=${firstStemme?.Aktør?.navn ?? "null"} ` +
+        `gruppe=${firstStemme?.Aktør?.gruppenavnkort ?? "null"}`,
+    );
+    return value;
   } catch (err) {
     console.error(`[ODA] fetch failed: ${url}`, err);
     return [];
