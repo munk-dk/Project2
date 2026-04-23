@@ -181,6 +181,47 @@ export async function fetchRecentVotingsWithVotes(
   }
 }
 
+// Henter mange afstemninger ved at paginere gennem ODA i chunks.
+// Bruges når vi skal finde sjældne events (fx rebeller) på tværs af
+// mange afstemninger.
+export async function fetchManyVotingsWithVotes(
+  total = 80,
+  chunkSize = 20,
+): Promise<OdaVoting[]> {
+  const all: OdaVoting[] = [];
+  let skip = 0;
+  while (all.length < total) {
+    const take = Math.min(chunkSize, total - all.length);
+    const url = buildUrl("Afstemning", {
+      expand: "Sagstrin/Sag,Stemme/Aktør",
+      orderby: "opdateringsdato desc",
+      top: take,
+      skip,
+    });
+    try {
+      const res = await fetch(url, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        console.error(`[ODA] ${res.status} on ${url}`);
+        break;
+      }
+      const data = (await res.json()) as OdaListResponse<OdaVoting>;
+      const batch = data.value ?? [];
+      if (batch.length === 0) break;
+      all.push(...batch);
+      skip += batch.length;
+      if (batch.length < take) break; // no more data
+    } catch (err) {
+      console.error(`[ODA] fetch failed: ${url}`, err);
+      break;
+    }
+  }
+  console.log(`[ODA] fetchManyVotingsWithVotes: got ${all.length}`);
+  return all;
+}
+
 export async function fetchVoting(id: number | string): Promise<OdaVoting | null> {
   return odaFetchOne<OdaVoting>("Afstemning", id, {
     expand: "Sagstrin/Sag,Stemme/Aktør",

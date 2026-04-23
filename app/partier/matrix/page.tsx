@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { AgreementMatrix } from "@/components/AgreementMatrix";
-import { fetchRecentVotingsWithVotes } from "@/lib/oda";
+import { fetchManyVotingsWithVotes } from "@/lib/oda";
 import { agreementMatrix, distinctParties } from "@/lib/analytics";
 import { PARTIES, type PartyKey } from "@/lib/parties";
 
@@ -27,7 +27,7 @@ const PARTY_ORDER: PartyKey[] = [
 ];
 
 export default async function MatrixPage() {
-  const votings = await fetchRecentVotingsWithVotes(15).catch(() => []);
+  const votings = await fetchManyVotingsWithVotes(60, 20).catch(() => []);
   const parties = distinctParties(votings).filter((p) => p !== "UFG");
   const ordered = PARTY_ORDER.filter((p) => parties.includes(p));
   // Tilføj evt. partier vi ikke har i PARTY_ORDER til sidst.

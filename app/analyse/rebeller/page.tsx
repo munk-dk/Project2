@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { PartyTag } from "@/components/PartyTag";
 import { Badge } from "@/components/ui/Badge";
-import { fetchRecentVotingsWithVotes, getVotingCase } from "@/lib/oda";
+import { fetchManyVotingsWithVotes, getVotingCase } from "@/lib/oda";
 import { findRebels, type Rebel } from "@/lib/analytics";
 import { VOTE_LABEL, VOTE_TONE, type VoteType } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -21,7 +21,7 @@ interface RebelEntry {
 }
 
 export default async function RebelsPage() {
-  const votings = await fetchRecentVotingsWithVotes(20).catch(() => []);
+  const votings = await fetchManyVotingsWithVotes(80, 20).catch(() => []);
 
   const entries: RebelEntry[] = [];
   const counts = new Map<number, { name: string; party: string; count: number }>();
