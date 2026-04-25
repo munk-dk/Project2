@@ -55,7 +55,7 @@ export default function HomePage() {
             {POPULAERE_SOEGNINGER.map((q) => (
               <Link
                 key={q}
-                href={`/søg?q=${encodeURIComponent(q)}`}
+                href={`/soeg?q=${encodeURIComponent(q)}`}
                 className="rounded-full border border-line bg-white px-3 py-1 text-ink-muted transition hover:border-brand-400 hover:text-brand-700"
               >
                 {q}

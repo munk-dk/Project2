@@ -23,7 +23,7 @@ Endpoints vi bruger (alle via JSON, server-side):
 
 | Endpoint | Brug |
 | --- | --- |
-| `GET /v1/produkter/sog/{tekst}` | Fritekstsøgning på navn / indholdsstof |
+| `GET /v1/produkter/sog/{tekst}` | Fritekstsoegning på navn / indholdsstof |
 | `GET /v1/produkter/detaljer/{varenummer}` | Detaljer for én pakning |
 | `GET /v1/atc/{atc-kode}` | Alle pakninger med en ATC-kode (bruges til at finde alternativer) |
 
@@ -43,7 +43,7 @@ npm run dev
 
 Appen kører på <http://localhost:3000>.
 
-### Test-søgninger
+### Test-soegninger
 
 Prøv disse for at verificere at API-integrationen virker:
 
@@ -65,13 +65,13 @@ Alt er valgfrit — appen virker uden `.env.local`.
 ```
 medicinhjaelper/
   app/
-    page.tsx                       # forside med søgefelt
-    søg/page.tsx                   # søgeresultater (gruppér på indholdsstof)
+    page.tsx                       # forside med soegefelt
+    soeg/page.tsx                   # soegeresultater (gruppér på indholdsstof)
     medicin/[varenummer]/page.tsx  # detaljevisning + alternativer
     layout.tsx
     globals.css
   components/
-    SearchBar.tsx                  # stort søgefelt
+    SearchBar.tsx                  # stort soegefelt
     MedicineGroup.tsx              # gruppé af original + generiske
     MedicineCard.tsx               # ét præparat
     SavingsHighlight.tsx           # "Du kan spare X kr"

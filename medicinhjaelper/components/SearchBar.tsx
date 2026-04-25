@@ -23,7 +23,7 @@ export function SearchBar({
     e.preventDefault();
     const q = value.trim();
     if (q.length === 0) return;
-    router.push(`/søg?q=${encodeURIComponent(q)}`);
+    router.push(`/soeg?q=${encodeURIComponent(q)}`);
   }
 
   const isLarge = size === "large";

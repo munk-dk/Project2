@@ -63,7 +63,7 @@ export default async function MedicinDetalje({ params }: PageProps) {
   return (
     <div className="container-page py-8 sm:py-10">
       <Link
-        href={`/søg?q=${encodeURIComponent(m.indholdsstof ?? m.navn)}`}
+        href={`/soeg?q=${encodeURIComponent(m.indholdsstof ?? m.navn)}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-ink-muted transition hover:text-brand-700"
       >
         <ArrowLeft className="size-4" aria-hidden />
