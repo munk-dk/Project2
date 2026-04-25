@@ -45,23 +45,38 @@ function getCacheSeconds() {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_CACHE_SECONDS;
 }
 
+const DEBUG = process.env.MEDICINPRISER_DEBUG === "1";
+
 async function fetchJson(url: string): Promise<unknown> {
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "Medicinhjaelper/0.1 (+https://github.com)",
-    },
-    next: { revalidate: getCacheSeconds() },
-  });
+  if (DEBUG) console.log(`[medicinpriser] GET ${url}`);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Medicinhjaelper/0.1 (+https://github.com)",
+      },
+      next: { revalidate: getCacheSeconds() },
+    });
+  } catch (err) {
+    if (DEBUG) console.log(`[medicinpriser] netværksfejl: ${String(err)}`);
+    throw err;
+  }
+  if (DEBUG) console.log(`[medicinpriser] -> ${res.status} ${res.statusText}`);
   if (!res.ok) {
     throw new Error(`API fejl ${res.status} for ${url}`);
   }
   // Nogle gange returneres JSON med text/plain — så vi parser manuelt.
   const text = await res.text();
+  if (DEBUG) {
+    const preview = text.slice(0, 200).replace(/\s+/g, " ");
+    console.log(`[medicinpriser]    body[${text.length}]: ${preview}`);
+  }
   if (!text) return null;
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (err) {
+    if (DEBUG) console.log(`[medicinpriser] JSON-parse fejl: ${String(err)}`);
     return null;
   }
 }
@@ -78,7 +93,15 @@ async function tryPaths(paths: string[], suffix: string): Promise<unknown> {
     const url = `${base}/${p}/${suffix}?format=json`;
     try {
       const data = await fetchJson(url);
-      if (data !== null && data !== undefined) return data;
+      if (data !== null && data !== undefined) {
+        // Hvis det er en tom liste, prøv næste sti — det kan være et
+        // 200 OK uden faktiske resultater fra en sti der teknisk findes.
+        if (Array.isArray(data) && data.length === 0) {
+          if (DEBUG) console.log(`[medicinpriser]    tom liste, prøver næste sti`);
+          continue;
+        }
+        return data;
+      }
     } catch (err) {
       lastErr = err;
     }
