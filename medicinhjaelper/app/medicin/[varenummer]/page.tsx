@@ -6,7 +6,12 @@ import { ABCBadge, ABCExplainer } from "@/components/ABCBadge";
 import { MedicineCard } from "@/components/MedicineCard";
 import { SavingsHighlight } from "@/components/SavingsHighlight";
 import { SubsidyExplainer } from "@/components/SubsidyExplainer";
-import { abcForklaring, getByAtc, getMedicine, groupMedicines } from "@/lib/medicine";
+import {
+  abcForklaring,
+  getMedicine,
+  getMedicineWithAlternatives,
+  groupMedicines,
+} from "@/lib/medicine";
 import { formatKr } from "@/lib/utils";
 
 export const revalidate = 3600;
@@ -25,12 +30,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function MedicinDetalje({ params }: PageProps) {
-  const m = await getMedicine(params.varenummer);
-  if (!m) notFound();
+  const { main, alternatives } = await getMedicineWithAlternatives(
+    params.varenummer,
+  );
+  if (!main) notFound();
+  const m = main;
 
-  // Find alternativer baseret på ATC-koden — det giver os hele substitutionsgruppen.
-  const sammeATC = m.atc ? await getByAtc(m.atc) : [];
-  const grupper = groupMedicines(sammeATC.length > 0 ? sammeATC : [m]);
+  // Brug API'ets egne Substitutioner-felter — vi kender dem allerede.
+  const grupper = groupMedicines([m, ...alternatives]);
 
   // Vælg gruppen vores præparat tilhører
   const minGruppe =

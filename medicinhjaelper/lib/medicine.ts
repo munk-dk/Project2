@@ -8,31 +8,32 @@ import type {
 // API-klient til Lægemiddelstyrelsens medicinpriser API
 // =============================================================================
 //
-// Base URL: https://api.medicinpriser.dk/v1
+// Base: https://api.medicinpriser.dk/v1
 //
-// API'et understøtter XML, JSON og JSONP. Vi bruger JSON via Accept-headeren.
-// Responsen kan indeholde forskellige feltnavne afhængigt af endpoint og
-// version (camelCase vs PascalCase, korte navne vs lange). Klienten her
-// normaliserer ved at læse fra alle kendte feltnavne.
+// Bekræftet endpoint:
+//   GET /v1/produkter/detaljer/{varenummer}?format=json
+//     Returnerer ét produkt med Substitutioner-array (alternativer i samme
+//     substitutionsgruppe, dog uden priser — dem henter vi separat).
 //
-// ALLE kald sker server-side (Server Components / Route Handlers) — det
-// undgår CORS i browseren og giver os ægte caching via Next.js fetch().
+// Søge-endpoint: I skrivende stund ikke bekræftet. Klienten prøver flere
+// kandidater i rækkefølge. Hvis ingen virker, kan vi falde tilbage til
+// kun at acceptere 6-cifrede varenumre som søgning.
 //
-// Endpoints vi bruger:
-//   GET /v1/produkter/sog/{søgetekst}        — fritekst-søgning på produktnavn
-//   GET /v1/produkter/detaljer/{varenummer}  — detaljer for én pakning
-//   GET /v1/atc/{atc-kode}                   — alle pakninger med en ATC
-//   GET /v1/sortiment/atc/{atc-kode}         — fallback for samme
-//
-// Hvis API'et returnerer en fejl eller et uventet format falder vi blødt
-// tilbage og returnerer en tom liste — UI'et viser så et venligt budskab.
+// API-feltnavne er PascalCase (Navn, Varenummer, PrisPrPakning, AtcKode,
+// VirksomtStof, Firma, Pakning, Styrke, Substitutioner, TilskudKode, …).
 // =============================================================================
 
 const DEFAULT_BASE = "https://api.medicinpriser.dk/v1";
 const DEFAULT_CACHE_SECONDS = 3600;
-const SEARCH_PATHS = ["produkter/sog", "produkt/sog", "sog"];
-const DETAIL_PATHS = ["produkter/detaljer", "produkt/detaljer", "detaljer"];
-const ATC_PATHS = ["atc", "sortiment/atc", "produkter/atc"];
+const SEARCH_PATHS = [
+  "produkter/sog",
+  "produkter/soeg",
+  "sog",
+  "soeg",
+  "produkter",
+];
+
+const DEBUG = process.env.MEDICINPRISER_DEBUG === "1";
 
 function getBase() {
   return (process.env.MEDICINPRISER_API_BASE ?? DEFAULT_BASE).replace(/\/+$/, "");
@@ -44,8 +45,6 @@ function getCacheSeconds() {
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_CACHE_SECONDS;
 }
-
-const DEBUG = process.env.MEDICINPRISER_DEBUG === "1";
 
 async function fetchJson(url: string): Promise<unknown> {
   if (DEBUG) console.log(`[medicinpriser] GET ${url}`);
@@ -66,7 +65,6 @@ async function fetchJson(url: string): Promise<unknown> {
   if (!res.ok) {
     throw new Error(`API fejl ${res.status} for ${url}`);
   }
-  // Nogle gange returneres JSON med text/plain — så vi parser manuelt.
   const text = await res.text();
   if (DEBUG) {
     const preview = text.slice(0, 200).replace(/\s+/g, " ");
@@ -81,37 +79,8 @@ async function fetchJson(url: string): Promise<unknown> {
   }
 }
 
-/**
- * Prøv flere endpoint-stier i rækkefølge. Returnér første der svarer
- * med 2xx + ikke-tom JSON. Vi gør dette fordi det offentlige API'ets
- * præcise stier kan variere lidt mellem versioner.
- */
-async function tryPaths(paths: string[], suffix: string): Promise<unknown> {
-  const base = getBase();
-  let lastErr: unknown = null;
-  for (const p of paths) {
-    const url = `${base}/${p}/${suffix}?format=json`;
-    try {
-      const data = await fetchJson(url);
-      if (data !== null && data !== undefined) {
-        // Hvis det er en tom liste, prøv næste sti — det kan være et
-        // 200 OK uden faktiske resultater fra en sti der teknisk findes.
-        if (Array.isArray(data) && data.length === 0) {
-          if (DEBUG) console.log(`[medicinpriser]    tom liste, prøver næste sti`);
-          continue;
-        }
-        return data;
-      }
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  if (lastErr) throw lastErr;
-  return null;
-}
-
 // -----------------------------------------------------------------------------
-// Normalisering — accepterer mange feltnavne, vælger første ikke-tomme
+// Normalisering — accepterer både PascalCase (rigtige API) og camelCase fallback
 // -----------------------------------------------------------------------------
 
 type RawObject = Record<string, unknown>;
@@ -153,216 +122,283 @@ function pickBool(obj: RawObject, ...keys: string[]): boolean {
   return false;
 }
 
-function pickAbc(obj: RawObject): SubstitutionCategory {
-  const raw = pickString(
-    obj,
-    "abc",
-    "ABC",
-    "priskategori",
-    "Priskategori",
-    "substitutionPriskategori",
-  );
-  if (!raw) return null;
-  const upper = raw.toUpperCase().trim();
-  if (upper === "A" || upper === "B" || upper === "C") return upper;
-  return null;
+/** Heuristik: hvis navnet starter med indholdsstoffet, er det generisk. */
+function looksGeneric(navn: string, indhold: string | null): boolean {
+  if (!indhold) return false;
+  const indholdL = indhold.toLowerCase().split(/\s|"/)[0] ?? "";
+  if (!indholdL) return false;
+  return navn.toLowerCase().includes(indholdL);
 }
 
-function pickIndlaegsseddel(obj: RawObject): string | null {
-  return pickString(
-    obj,
-    "indlaegsseddel",
-    "indlaegsseddelUrl",
-    "indlaegsseddelLink",
-    "leafletUrl",
-    "indlaegssedlerUrl",
-  );
-}
-
-function looksOriginal(obj: RawObject, navn: string | null): boolean {
-  // Heuristik: hvis API'et eksplicit markerer original, brug det.
-  // Ellers gætter vi: original har typisk handelsnavn der ikke
-  // matcher indholdsstoffet 1:1, og generiske kopier nævner ofte
-  // producenten i navnet ("Paracetamol Orifarm").
-  if (pickBool(obj, "erOriginal", "original", "isOriginal")) return true;
-  const indhold = pickString(obj, "indholdsstof", "virksomtStof", "atcTekst");
-  if (!navn || !indhold) return false;
-  const navnL = navn.toLowerCase();
-  const indholdL = indhold.toLowerCase();
-  // Hvis navnet starter med indholdsstoffet — det er typisk en generisk
-  return !navnL.startsWith(indholdL.split(" ")[0] ?? "");
+function pickSubstitutionsVarenumre(obj: RawObject): string[] {
+  const subs = obj["Substitutioner"] ?? obj["substitutioner"];
+  if (!Array.isArray(subs)) return [];
+  const out: string[] = [];
+  for (const s of subs) {
+    if (s && typeof s === "object") {
+      const vnr = pickString(s as RawObject, "Varenummer", "varenummer", "vnr");
+      if (vnr) out.push(vnr);
+    }
+  }
+  return out;
 }
 
 function normalizeMedicine(raw: unknown): Medicine | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as RawObject;
 
-  const varenummer = pickString(o, "varenummer", "vnr", "Varenummer", "VareNummer");
+  // PascalCase first, camelCase as fallback
+  const varenummer = pickString(o, "Varenummer", "varenummer", "vnr");
   if (!varenummer) return null;
 
-  const navn = pickString(o, "navn", "produktnavn", "lmNavn", "name", "Navn");
+  const navn = pickString(o, "Navn", "navn", "produktnavn");
   if (!navn) return null;
 
-  const styrke = pickString(o, "styrke", "Styrke", "strength");
-  const form = pickString(o, "form", "lmForm", "laegemiddelform", "dispenseringsform");
-  const pakning = pickString(
-    o,
-    "pakning",
-    "pakningsstoerrelse",
-    "pakningsstr",
-    "Pakning",
-    "packageSize",
-  );
-  const indhold = pickString(o, "indholdsstof", "virksomtStof", "atcTekst", "activeSubstance");
-  const firma = pickString(o, "firma", "firmanavn", "indehaver", "Firma", "company");
+  const indhold = pickString(o, "VirksomtStof", "indholdsstof", "atcTekst");
+  const tilskudKode = pickString(o, "TilskudKode", "tilskudKode");
+  const tilskudTekst = pickString(o, "TilskudTekst", "tilskudTekst");
 
-  const pris = pickNumber(o, "forbrugerpris", "aup", "kundepris", "pris", "price", "ConsumerPrice");
-  const prisPrEnhed = pickNumber(
-    o,
-    "prisPrEnhed",
-    "enhedspris",
-    "ddPris",
-    "ConsumerPricePerUnit",
-  );
+  // Tilskud findes hvis TilskudKode er sat og ikke "0"/"intet"
+  let harTilskud = false;
+  if (tilskudKode) {
+    const k = tilskudKode.toUpperCase();
+    harTilskud = k !== "" && k !== "0" && k !== "INTET";
+  } else {
+    harTilskud = pickBool(o, "tilskud", "harTilskud");
+  }
+
+  // TilskudBeregnesAf er det grundlag CTR beregnes af — det er den effektive
+  // pris for tilskudsberegning, ikke det brugeren betaler. Vi viser den dog
+  // som "den pris dit tilskud beregnes ud fra" når den findes.
   const prisMedTilskud = pickNumber(
     o,
+    "TilskudBeregnesAf",
+    "tilskudBeregnesAf",
     "prisMedTilskud",
     "tilskudspris",
-    "patientpris",
-    "patientPrice",
   );
+
+  // Håndkøb -> ikke recept. Hvis ingen markering: gæt ud fra navn.
+  const haandkoeb = pickBool(o, "Haandkoeb", "haandkoeb", "handkoeb");
 
   return {
     varenummer,
     navn,
-    firma,
-    atc: pickString(o, "atc", "atcKode", "ATC"),
+    firma: pickString(o, "Firma", "firma", "firmanavn", "indehaver"),
+    atc: pickString(o, "AtcKode", "atc", "atcKode"),
     indholdsstof: indhold,
-    styrke,
-    form,
-    pakning,
-    prisKr: pris,
-    prisPrEnhedKr: prisPrEnhed,
+    styrke: pickString(o, "Styrke", "styrke"),
+    form: pickString(o, "form", "lmForm", "laegemiddelform"),
+    pakning: pickString(o, "Pakning", "pakning", "pakningsstoerrelse"),
+    prisKr: pickNumber(
+      o,
+      "PrisPrPakning",
+      "forbrugerpris",
+      "kundepris",
+      "pris",
+    ),
+    prisPrEnhedKr: pickNumber(o, "PrisPrEnhed", "prisPrEnhed", "enhedspris"),
     substitutionsgruppe: pickString(
       o,
+      "Substitutionsgruppe",
       "substitutionsgruppe",
       "substitutionsGruppeId",
-      "sgId",
-      "substitutionGroup",
     ),
-    abc: pickAbc(o),
-    tilskud: pickBool(o, "tilskud", "harTilskud", "subsidy"),
+    abc: null, // beregnes af groupMedicines — ikke leveret af API'et
+    tilskud: harTilskud,
     prisMedTilskudKr: prisMedTilskud,
-    erOriginal: looksOriginal(o, navn),
-    recept: pickBool(o, "recept", "receptpligtig", "prescription"),
-    indlaegsseddelUrl: pickIndlaegsseddel(o),
+    erOriginal: !looksGeneric(navn, indhold),
+    recept: !haandkoeb,
+    indlaegsseddelUrl: pickString(
+      o,
+      "IndlaegssedlerUrl",
+      "indlaegsseddelUrl",
+      "indlaegsseddel",
+    ),
+    tilskudKode,
+    tilskudTekst,
+    indikation: pickString(o, "Indikation", "indikation"),
+    dosering: pickString(o, "Dosering", "dosering"),
+    trafikAdvarsel: pickBool(o, "TrafikAdvarsel", "trafikAdvarsel"),
+    udgaaet: pickBool(o, "Udgaaet", "udgaaet"),
+    substitutionsVarenumre: pickSubstitutionsVarenumre(o),
   };
 }
 
-/**
- * API'er svinger mellem `[ {...} ]`, `{ produkter: [ {...} ] }`,
- * `{ data: [...] }` osv. Denne fundtion finder den faktiske liste.
- */
 function unwrapList(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
   if (raw && typeof raw === "object") {
     const o = raw as RawObject;
     for (const key of [
+      "Produkter",
       "produkter",
+      "Pakninger",
+      "pakninger",
       "data",
       "items",
       "results",
       "hits",
-      "pakninger",
-      "Produkter",
     ]) {
       const v = o[key];
       if (Array.isArray(v)) return v;
     }
-    // Hvis det er et enkelt objekt med varenummer — pak det som single-list
-    if ("varenummer" in o || "Varenummer" in o || "vnr" in o) return [o];
+    if ("Varenummer" in o || "varenummer" in o || "vnr" in o) return [o];
   }
   return [];
-}
-
-function unwrapSingle(raw: unknown): unknown {
-  if (Array.isArray(raw)) return raw[0] ?? null;
-  if (raw && typeof raw === "object") {
-    const o = raw as RawObject;
-    for (const key of ["produkt", "data", "result", "Produkt"]) {
-      const v = o[key];
-      if (v && typeof v === "object") return v;
-    }
-  }
-  return raw;
 }
 
 // -----------------------------------------------------------------------------
 // Public API
 // -----------------------------------------------------------------------------
 
-/** Søg medicin via fritekst — typisk produktnavn eller indholdsstof. */
-export async function searchMedicine(query: string): Promise<Medicine[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  try {
-    const raw = await tryPaths(SEARCH_PATHS, encodeURIComponent(q));
-    return unwrapList(raw)
-      .map(normalizeMedicine)
-      .filter((m): m is Medicine => m !== null);
-  } catch (err) {
-    console.warn("[medicinhjaelper] søgefejl:", err);
-    return [];
-  }
-}
-
 /** Hent detaljer for én pakning ved varenummer. */
 export async function getMedicine(varenummer: string): Promise<Medicine | null> {
   const vnr = varenummer.trim();
   if (!/^\d{4,8}$/.test(vnr)) return null;
+  const url = `${getBase()}/produkter/detaljer/${vnr}?format=json`;
   try {
-    const raw = await tryPaths(DETAIL_PATHS, vnr);
-    return normalizeMedicine(unwrapSingle(raw));
+    const raw = await fetchJson(url);
+    return normalizeMedicine(raw);
   } catch (err) {
-    console.warn("[medicinhjaelper] detalje-fejl:", err);
+    if (DEBUG) console.warn("[medicinhjaelper] detalje-fejl:", err);
     return null;
   }
 }
 
-/** Hent alle pakninger der deler en ATC-kode (samme indholdsstof + styrke). */
-export async function getByAtc(atc: string): Promise<Medicine[]> {
-  const code = atc.trim().toUpperCase();
-  if (code.length < 3) return [];
-  try {
-    const raw = await tryPaths(ATC_PATHS, encodeURIComponent(code));
-    return unwrapList(raw)
-      .map(normalizeMedicine)
-      .filter((m): m is Medicine => m !== null);
-  } catch (err) {
-    console.warn("[medicinhjaelper] ATC-fejl:", err);
-    return [];
+/**
+ * Hent flere produkter samtidigt. Kald sker parallelt og resultater
+ * der ikke kunne hentes filtreres væk.
+ */
+export async function getMedicines(varenumre: string[]): Promise<Medicine[]> {
+  if (varenumre.length === 0) return [];
+  const results = await Promise.all(varenumre.map((v) => getMedicine(v)));
+  return results.filter((m): m is Medicine => m !== null);
+}
+
+/**
+ * Hent et produkt og alle dets substitutioner (med priser) på én gang.
+ * Brugbar til detaljesiden hvor vi viser alternativer side om side.
+ */
+export async function getMedicineWithAlternatives(
+  varenummer: string,
+): Promise<{ main: Medicine | null; alternatives: Medicine[] }> {
+  const main = await getMedicine(varenummer);
+  if (!main) return { main: null, alternatives: [] };
+  const alternatives = await getMedicines(main.substitutionsVarenumre);
+  return { main, alternatives };
+}
+
+/**
+ * Søg medicin via fritekst. Det rigtige search-endpoint er endnu ikke
+ * 100 % bekræftet — vi prøver flere kendte stier i rækkefølge. Hvis
+ * input ligner et 6-cifret varenummer, slår vi det op direkte.
+ */
+export async function searchMedicine(query: string): Promise<Medicine[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  // Genvej: hvis det er et varenummer, gå direkte til detalje + alternativer
+  if (/^\d{6}$/.test(q)) {
+    const { main, alternatives } = await getMedicineWithAlternatives(q);
+    return main ? [main, ...alternatives] : [];
   }
+
+  const base = getBase();
+  let lastErr: unknown = null;
+  for (const path of SEARCH_PATHS) {
+    const url = `${base}/${path}/${encodeURIComponent(q)}?format=json`;
+    try {
+      const raw = await fetchJson(url);
+      const list = unwrapList(raw)
+        .map(normalizeMedicine)
+        .filter((m): m is Medicine => m !== null);
+      if (list.length > 0) {
+        return await enrichWithAlternatives(list);
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  // Også prøv som querystring på basis-stien
+  const altUrls = [
+    `${base}/produkter?navn=${encodeURIComponent(q)}&format=json`,
+    `${base}/produkter/sog?navn=${encodeURIComponent(q)}&format=json`,
+    `${base}/sog?q=${encodeURIComponent(q)}&format=json`,
+  ];
+  for (const url of altUrls) {
+    try {
+      const raw = await fetchJson(url);
+      const list = unwrapList(raw)
+        .map(normalizeMedicine)
+        .filter((m): m is Medicine => m !== null);
+      if (list.length > 0) {
+        return await enrichWithAlternatives(list);
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (DEBUG && lastErr) console.warn("[medicinhjaelper] søgefejl:", lastErr);
+  return [];
+}
+
+/**
+ * Berig søgeresultater med alle deres substitutioner — så vi kan vise
+ * billigere alternativer selv når de ikke selv stod i søgeresultatet.
+ * Begrænser til de første få hits for ikke at hamre API'et.
+ */
+async function enrichWithAlternatives(hits: Medicine[]): Promise<Medicine[]> {
+  const MAX_ENRICH = 5;
+  const seen = new Set(hits.map((m) => m.varenummer));
+  const extra: Medicine[] = [];
+  for (const hit of hits.slice(0, MAX_ENRICH)) {
+    for (const vnr of hit.substitutionsVarenumre) {
+      if (!seen.has(vnr)) {
+        seen.add(vnr);
+        const m = await getMedicine(vnr);
+        if (m) extra.push(m);
+      }
+    }
+  }
+  return [...hits, ...extra];
 }
 
 // -----------------------------------------------------------------------------
-// Gruppering — samler ækvivalente pakninger så brugeren kan se alternativer
+// Gruppering — samler ækvivalente pakninger og beregner A/B/C selv
 // -----------------------------------------------------------------------------
 
 function groupKey(m: Medicine): string {
-  // Foretrukken nøgle er substitutionsgruppen — den er API'ets eget bud
-  // på "disse er ækvivalente". Hvis den ikke findes falder vi tilbage til
-  // ATC + styrke + form + pakning.
   if (m.substitutionsgruppe) return `sg:${m.substitutionsgruppe}`;
-  return `atc:${m.atc ?? "?"}|${m.styrke ?? "?"}|${m.form ?? "?"}|${m.pakning ?? "?"}`;
+  // Substitutionsgruppen følger ATC + styrke (samme aktive stof + dosis).
+  // Pakningsstørrelse blandes ikke ind — alternativer med forskellige
+  // pakkestørrelser sammenlignes via pris-pr-stk.
+  return `atc:${m.atc ?? "?"}|${m.styrke ?? "?"}`;
 }
 
 function groupHeadline(sample: Medicine): string {
   const parts: string[] = [];
   if (sample.indholdsstof) parts.push(sample.indholdsstof);
   if (sample.styrke) parts.push(sample.styrke);
-  if (sample.form) parts.push(sample.form);
-  if (sample.pakning) parts.push(`(${sample.pakning})`);
   return parts.length > 0 ? parts.join(" ") : sample.navn;
+}
+
+/**
+ * Beregn A/B/C på baggrund af pris-pr-stk i gruppen:
+ *   A = inden for 0,50 kr af billigste (eller billigste nøjagtigt)
+ *   B = inden for 5 kr af billigste pr pakning
+ *   C = mere end 5 kr dyrere
+ */
+function computeAbc(
+  m: Medicine,
+  billigsteKr: number | null,
+): SubstitutionCategory {
+  if (m.prisKr === null || billigsteKr === null) return null;
+  const diff = m.prisKr - billigsteKr;
+  if (diff <= 0.5) return "A";
+  if (diff <= 5) return "B";
+  return "C";
 }
 
 export function groupMedicines(list: Medicine[]): MedicineGroupData[] {
@@ -386,6 +422,13 @@ export function groupMedicines(list: Medicine[]): MedicineGroupData[] {
     const dyreste =
       [...sorted].reverse().find((m) => m.prisKr !== null) ?? null;
     const original = sorted.find((m) => m.erOriginal) ?? null;
+
+    // Sæt A/B/C på alle elementer baseret på billigste i denne gruppe
+    const billigsteKr = billigste?.prisKr ?? null;
+    for (const m of sorted) {
+      m.abc = computeAbc(m, billigsteKr);
+    }
+
     const alternativer = sorted.filter((m) => m !== original);
 
     let maxBesparelse = 0;
@@ -417,13 +460,12 @@ export function groupMedicines(list: Medicine[]): MedicineGroupData[] {
     });
   }
 
-  // Sortér grupper med størst besparelse øverst — det er den værdi vi tilbyder
   groups.sort((a, b) => b.maxBesparelseKr - a.maxBesparelseKr);
   return groups;
 }
 
 // -----------------------------------------------------------------------------
-// Forklaringstekster — bruges af UI-komponenter
+// Forklaringstekster
 // -----------------------------------------------------------------------------
 
 export function abcForklaring(abc: SubstitutionCategory): {
@@ -455,5 +497,22 @@ export function abcForklaring(abc: SubstitutionCategory): {
         lang:
           "Pakningen indgår ikke i en substitutionsgruppe. Der er enten ingen direkte alternativer, eller præparatet er originalen alene på markedet.",
       };
+  }
+}
+
+export function tilskudForklaring(kode: string | null): string {
+  if (!kode) return "Ingen tilskud";
+  const k = kode.toUpperCase();
+  switch (k) {
+    case "A":
+      return "Generelt tilskud — alle får automatisk tilskud via CTR";
+    case "B":
+    case "BEGR":
+      return "Begrænset tilskud — gælder kun visse aldersgrupper eller forhold";
+    case "C":
+    case "KLAUS":
+      return "Klausuleret tilskud — kun ved bestemte sygdomme, lægen skal markere recepten";
+    default:
+      return `Tilskudskode ${kode}`;
   }
 }

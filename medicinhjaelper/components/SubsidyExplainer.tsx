@@ -1,4 +1,5 @@
 import { Info, Wallet } from "lucide-react";
+import { tilskudForklaring } from "@/lib/medicine";
 import { cn, formatKr } from "@/lib/utils";
 import type { Medicine } from "@/lib/types";
 
@@ -9,7 +10,9 @@ interface Props {
 
 export function SubsidyExplainer({ medicine, className }: Props) {
   const harTilskud = medicine.tilskud;
-  const tilskudspris = medicine.prisMedTilskudKr;
+  const tilskudType =
+    medicine.tilskudTekst ?? tilskudForklaring(medicine.tilskudKode);
+  const tilskudGrundlag = medicine.prisMedTilskudKr;
   const fuldPris = medicine.prisKr;
 
   return (
@@ -36,25 +39,31 @@ export function SubsidyExplainer({ medicine, className }: Props) {
           {harTilskud ? (
             <>
               <p className="mt-1 text-ink-muted">
-                Hvor meget du betaler afhænger af hvor meget medicin du har købt
-                i år (din CTR-saldo). Når du har købt for mere, falder din pris.
+                <strong className="text-ink">{tilskudType}.</strong> Hvor meget
+                du betaler afhænger af hvor meget medicin du har købt i år (din
+                CTR-saldo). Når du har købt for mere, falder din pris.
               </p>
-              {tilskudspris !== null && fuldPris !== null ? (
-                <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-line bg-white p-3">
+                  <dt className="text-sm text-ink-subtle">Pris i apoteket</dt>
+                  <dd className="mt-1 text-2xl font-bold tabular-nums text-ink">
+                    {formatKr(fuldPris)}
+                  </dd>
+                </div>
+                {tilskudGrundlag !== null ? (
                   <div className="rounded-lg border border-line bg-white p-3">
-                    <dt className="text-sm text-ink-subtle">Med tilskud betaler du</dt>
+                    <dt className="text-sm text-ink-subtle">
+                      Tilskud beregnes af
+                    </dt>
                     <dd className="mt-1 text-2xl font-bold tabular-nums text-brand-700">
-                      {formatKr(tilskudspris)}
+                      {formatKr(tilskudGrundlag)}
+                    </dd>
+                    <dd className="mt-1 text-xs text-ink-subtle">
+                      Hvad CTR bruger som grundlag
                     </dd>
                   </div>
-                  <div className="rounded-lg border border-line bg-white p-3">
-                    <dt className="text-sm text-ink-subtle">Uden tilskud koster den</dt>
-                    <dd className="mt-1 text-2xl font-bold tabular-nums text-ink">
-                      {formatKr(fuldPris)}
-                    </dd>
-                  </div>
-                </dl>
-              ) : null}
+                ) : null}
+              </dl>
               <details className="group mt-4 rounded-lg bg-white p-3 text-ink-muted">
                 <summary className="flex cursor-pointer items-center gap-2 font-medium text-ink">
                   <Info className="size-4" aria-hidden />

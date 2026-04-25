@@ -38,6 +38,20 @@ export interface Medicine {
   recept: boolean;
   /** Link til indlægsseddel hos Lægemiddelstyrelsen, hvis tilgængeligt */
   indlaegsseddelUrl: string | null;
+  /** Tilskudskode fra Lægemiddelstyrelsen — fx "A" = generelt tilskud */
+  tilskudKode: string | null;
+  /** Forklarende tilskudstekst — fx "Generelt tilskud", "Klausuleret tilskud" */
+  tilskudTekst: string | null;
+  /** Indikation — hvad medicinen er til, fx "mod smerter, febernedsættende" */
+  indikation: string | null;
+  /** Dosering i fri tekst */
+  dosering: string | null;
+  /** Trafikadvarsel — påvirker det evnen til at køre? */
+  trafikAdvarsel: boolean;
+  /** Er pakningen udgået? */
+  udgaaet: boolean;
+  /** Varenumre på substitutioner — udfyldes når detaljer hentes */
+  substitutionsVarenumre: string[];
 }
 
 /** En substitutionsgruppe — alle pakninger i gruppen har samme virkning */
