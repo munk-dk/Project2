@@ -344,7 +344,7 @@ export async function searchMedicine(query: string): Promise<Medicine[]> {
           .map(normalizeMedicine)
           .filter((m): m is Medicine => m !== null);
         if (list.length > 0) {
-          return await enrichWithAlternatives(list);
+          return await enrichSearchHits(list);
         }
       } catch (err) {
         lastErr = err;
@@ -357,42 +357,86 @@ export async function searchMedicine(query: string): Promise<Medicine[]> {
 }
 
 /**
- * Berig søgeresultater med alle deres substitutioner — så vi kan vise
- * billigere alternativer selv når de ikke selv stod i søgeresultatet.
- * Begrænser til de første få hits for ikke at hamre API'et.
+ * Søgeresponset er minimalt — kun Navn, Varenummer, Firma, Styrke, Pakning.
+ * Pris, ATC, indholdsstof og tilskud får vi kun via detaljer-endpointet.
+ * Vi henter derfor fuld detalje for hver hit (parallelt) og — for de
+ * øverste hits — også for deres substitutioner, så generiske alternativer
+ * fra andre mærker også kommer med selv om de ikke matchede søgeordet.
  */
-async function enrichWithAlternatives(hits: Medicine[]): Promise<Medicine[]> {
-  const MAX_ENRICH = 5;
-  const seen = new Set(hits.map((m) => m.varenummer));
-  const extra: Medicine[] = [];
-  for (const hit of hits.slice(0, MAX_ENRICH)) {
-    for (const vnr of hit.substitutionsVarenumre) {
+async function enrichSearchHits(hits: Medicine[]): Promise<Medicine[]> {
+  const MAX_HITS = 30;
+  const limited = hits.slice(0, MAX_HITS);
+
+  // 1) Hent fulde detaljer for hver søgehit
+  const fulls = await Promise.all(
+    limited.map((h) => getMedicine(h.varenummer)),
+  );
+  const enriched = fulls.filter((m): m is Medicine => m !== null);
+
+  // 2) Saml unikke substitutioner fra de øverste hits og hent dem også
+  const seen = new Set(enriched.map((m) => m.varenummer));
+  const extraVnrs: string[] = [];
+  for (const m of enriched.slice(0, 10)) {
+    for (const vnr of m.substitutionsVarenumre) {
       if (!seen.has(vnr)) {
         seen.add(vnr);
-        const m = await getMedicine(vnr);
-        if (m) extra.push(m);
+        extraVnrs.push(vnr);
       }
     }
   }
-  return [...hits, ...extra];
+  const MAX_EXTRA = 25;
+  const extras = await Promise.all(
+    extraVnrs.slice(0, MAX_EXTRA).map((v) => getMedicine(v)),
+  );
+  const extraEnriched = extras.filter((m): m is Medicine => m !== null);
+
+  return [...enriched, ...extraEnriched];
 }
 
 // -----------------------------------------------------------------------------
 // Gruppering — samler ækvivalente pakninger og beregner A/B/C selv
 // -----------------------------------------------------------------------------
 
+/**
+ * Udled form fra Pakning-strengen — fx "100 stk. (dåse) filmovertrukne tabl."
+ * → "tabletter". Bruges til gruppering så fx brusetabletter ikke ender i
+ * samme gruppe som almindelige tabletter selv om de har samme indholdsstof
+ * og styrke. Returnerer en standardiseret form-betegnelse.
+ */
+export function udledForm(pakning: string | null): string | null {
+  if (!pakning) return null;
+  const p = pakning.toLowerCase();
+  // Rækkefølgen er vigtig — mere specifikke matches først.
+  if (p.includes("brusetab")) return "brusetabletter";
+  if (p.includes("suppositori")) return "stikpiller";
+  if (p.includes("oral susp")) return "mikstur";
+  if (p.includes("oral opl") || p.includes("oral.opl")) return "mikstur";
+  if (p.includes("pul.t.oral") || p.includes("pulver til oral")) return "pulver";
+  if (p.includes("inj.væske") || p.includes("inj væske") || p.includes("injektion"))
+    return "injektion";
+  if (p.includes("kapsler") || p.includes("kaps.")) return "kapsler";
+  if (p.includes("filmovertrukne") || p.includes("tabl.") || p.includes("tabletter"))
+    return "tabletter";
+  if (p.includes("creme") || p.includes("salve")) return "creme/salve";
+  if (p.includes("dråber")) return "dråber";
+  return null;
+}
+
 function groupKey(m: Medicine): string {
   if (m.substitutionsgruppe) return `sg:${m.substitutionsgruppe}`;
-  // Substitutionsgruppen følger ATC + styrke (samme aktive stof + dosis).
-  // Pakningsstørrelse blandes ikke ind — alternativer med forskellige
-  // pakkestørrelser sammenlignes via pris-pr-stk.
-  return `atc:${m.atc ?? "?"}|${m.styrke ?? "?"}`;
+  // Gruppér ækvivalente pakninger: samme ATC + samme styrke + samme
+  // formulering (tablet, brus, mikstur, …). Pakningsstørrelse blandes
+  // ikke ind — pris-pr-stk gør sammenligningen retfærdig på tværs.
+  const form = udledForm(m.pakning);
+  return `atc:${m.atc ?? "?"}|${m.styrke ?? "?"}|${form ?? "?"}`;
 }
 
 function groupHeadline(sample: Medicine): string {
   const parts: string[] = [];
   if (sample.indholdsstof) parts.push(sample.indholdsstof);
   if (sample.styrke) parts.push(sample.styrke);
+  const form = udledForm(sample.pakning);
+  if (form) parts.push(form);
   return parts.length > 0 ? parts.join(" ") : sample.navn;
 }
 
