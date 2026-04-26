@@ -289,54 +289,66 @@ export async function getMedicineWithAlternatives(
 }
 
 /**
- * Søg medicin via fritekst. Det rigtige search-endpoint er endnu ikke
- * 100 % bekræftet — vi prøver flere kendte stier i rækkefølge. Hvis
- * input ligner et 6-cifret varenummer, slår vi det op direkte.
+ * Genvej: hvis input er et 6-cifret varenummer, hop direkte i detalje.
+ */
+function isVarenummer(s: string): boolean {
+  return /^\d{6}$/.test(s);
+}
+
+/** Capitalisér første bogstav — API'ets søgning ser ud til at være case-sensitiv. */
+function titleCase(s: string): string {
+  if (s.length === 0) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+/** Generér søgevarianter at prøve i rækkefølge. */
+function searchVariants(q: string): string[] {
+  const variants = new Set<string>();
+  variants.add(titleCase(q));
+  variants.add(q);
+  variants.add(q.toLowerCase());
+  // Forkortelse — fx "Pano" matcher Panodil hvis API'et bruger prefix
+  if (q.length > 3) variants.add(titleCase(q).slice(0, 4));
+  return Array.from(variants);
+}
+
+/**
+ * Søg medicin via fritekst. API'ets søgning ligger på
+ * `/v1/produkter/sog/{tekst}` og ser ud til at være prefix-match med
+ * stort begyndelsesbogstav, så vi prøver flere case-varianter.
  */
 export async function searchMedicine(query: string): Promise<Medicine[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
-  // Genvej: hvis det er et varenummer, gå direkte til detalje + alternativer
-  if (/^\d{6}$/.test(q)) {
+  // Genvej: 6-cifret varenummer → direkte detalje + alternativer
+  if (isVarenummer(q)) {
     const { main, alternatives } = await getMedicineWithAlternatives(q);
     return main ? [main, ...alternatives] : [];
   }
 
-  const base = getBase();
-  let lastErr: unknown = null;
-  for (const path of SEARCH_PATHS) {
-    const url = `${base}/${path}/${encodeURIComponent(q)}?format=json`;
-    try {
-      const raw = await fetchJson(url);
-      const list = unwrapList(raw)
-        .map(normalizeMedicine)
-        .filter((m): m is Medicine => m !== null);
-      if (list.length > 0) {
-        return await enrichWithAlternatives(list);
-      }
-    } catch (err) {
-      lastErr = err;
-    }
+  // ATC-kode: fx "N02BE01" — slå hele ATC-gruppen op (best effort)
+  if (/^[A-Z]\d{2}[A-Z]{1,2}\d{0,2}$/i.test(q)) {
+    // Vi har ikke et bekræftet ATC-endpoint; spring den over for nu.
   }
 
-  // Også prøv som querystring på basis-stien
-  const altUrls = [
-    `${base}/produkter?navn=${encodeURIComponent(q)}&format=json`,
-    `${base}/produkter/sog?navn=${encodeURIComponent(q)}&format=json`,
-    `${base}/sog?q=${encodeURIComponent(q)}&format=json`,
-  ];
-  for (const url of altUrls) {
-    try {
-      const raw = await fetchJson(url);
-      const list = unwrapList(raw)
-        .map(normalizeMedicine)
-        .filter((m): m is Medicine => m !== null);
-      if (list.length > 0) {
-        return await enrichWithAlternatives(list);
+  const base = getBase();
+  let lastErr: unknown = null;
+
+  for (const path of SEARCH_PATHS) {
+    for (const variant of searchVariants(q)) {
+      const url = `${base}/${path}/${encodeURIComponent(variant)}?format=json`;
+      try {
+        const raw = await fetchJson(url);
+        const list = unwrapList(raw)
+          .map(normalizeMedicine)
+          .filter((m): m is Medicine => m !== null);
+        if (list.length > 0) {
+          return await enrichWithAlternatives(list);
+        }
+      } catch (err) {
+        lastErr = err;
       }
-    } catch (err) {
-      lastErr = err;
     }
   }
 

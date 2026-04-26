@@ -10,9 +10,9 @@ import {
   abcForklaring,
   getMedicine,
   getMedicineWithAlternatives,
-  groupMedicines,
 } from "@/lib/medicine";
 import { formatKr } from "@/lib/utils";
+import type { SubstitutionCategory } from "@/lib/types";
 
 export const revalidate = 3600;
 
@@ -36,34 +36,40 @@ export default async function MedicinDetalje({ params }: PageProps) {
   if (!main) notFound();
   const m = main;
 
-  // Brug API'ets egne Substitutioner-felter — vi kender dem allerede.
-  const grupper = groupMedicines([m, ...alternatives]);
+  // API'ets Substitutioner er den autoritative liste af alternativer —
+  // vi viser dem alle uanset pakkestørrelse og lader pris-pr-stk gøre
+  // sammenligningen retfærdig.
+  const alleIGruppe = [m, ...alternatives];
+  const sorteret = [...alleIGruppe].sort(
+    (a, b) =>
+      (a.prisKr ?? Number.POSITIVE_INFINITY) -
+      (b.prisKr ?? Number.POSITIVE_INFINITY),
+  );
+  const billigste = sorteret.find((x) => x.prisKr !== null) ?? null;
+  const billigsteKr = billigste?.prisKr ?? null;
 
-  // Vælg gruppen vores præparat tilhører
-  const minGruppe =
-    grupper.find((g) =>
-      [g.original, ...g.alternativer].some(
-        (x) => x?.varenummer === m.varenummer,
-      ),
-    ) ?? grupper[0];
+  // Beregn A/B/C på tværs af hele gruppen
+  function abc(p: number | null): SubstitutionCategory {
+    if (p === null || billigsteKr === null) return null;
+    const diff = p - billigsteKr;
+    if (diff <= 0.5) return "A";
+    if (diff <= 5) return "B";
+    return "C";
+  }
+  for (const x of alleIGruppe) {
+    x.abc = abc(x.prisKr);
+  }
 
-  const billigereAlternativer = (minGruppe?.alternativer ?? [])
-    .concat(minGruppe?.original ? [minGruppe.original] : [])
-    .filter(
-      (alt) =>
-        alt &&
-        alt.varenummer !== m.varenummer &&
-        alt.prisKr !== null &&
-        m.prisKr !== null &&
-        alt.prisKr < m.prisKr,
-    );
-
-  const billigste = minGruppe?.billigste ?? null;
   const erBilligste = billigste?.varenummer === m.varenummer;
   const besparelseVsBilligste =
     !erBilligste && billigste?.prisKr != null && m.prisKr != null
       ? m.prisKr - billigste.prisKr
       : 0;
+
+  // Alle alternativer (ekskl. main), sorteret billigste først
+  const visAlternativer = sorteret.filter(
+    (x) => x.varenummer !== m.varenummer,
+  );
 
   const abcText = abcForklaring(m.abc);
 
@@ -195,20 +201,18 @@ export default async function MedicinDetalje({ params }: PageProps) {
             Apoteket må udskifte til disse — bare bed om det billigste.
           </p>
 
-          {billigereAlternativer.length === 0 ? (
+          {visAlternativer.length === 0 ? (
             <p className="mt-6 rounded-xl border border-line bg-white p-5 text-ink">
-              {erBilligste
-                ? "Du har allerede valgt det billigste alternativ — godt valgt!"
-                : "Vi kunne ikke finde billigere alternativer i samme gruppe lige nu."}
+              Vi kunne ikke finde alternativer til denne pakning lige nu.
             </p>
           ) : (
             <ul className="mt-6 space-y-3">
-              {billigereAlternativer.map((alt) => (
-                <li key={alt!.varenummer}>
+              {visAlternativer.map((alt) => (
+                <li key={alt.varenummer}>
                   <MedicineCard
-                    medicine={alt!}
+                    medicine={alt}
                     variant={
-                      alt!.varenummer === billigste?.varenummer
+                      alt.varenummer === billigste?.varenummer
                         ? "billigste"
                         : "alternativ"
                     }
