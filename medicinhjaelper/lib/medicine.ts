@@ -25,12 +25,13 @@ import type {
 
 const DEFAULT_BASE = "https://api.medicinpriser.dk/v1";
 const DEFAULT_CACHE_SECONDS = 3600;
+// Bekræftet via debug-logning: API'ets søgning ligger på /v1/produkter/{tekst}
+// (prefix-match med stort begyndelsesbogstav). De andre kandidater giver 404
+// eller 500. Vi prøver dem alligevel som fallback hvis API'et ændrer sig.
 const SEARCH_PATHS = [
+  "produkter",
   "produkter/sog",
   "produkter/soeg",
-  "sog",
-  "soeg",
-  "produkter",
 ];
 
 const DEBUG = process.env.MEDICINPRISER_DEBUG === "1";
@@ -359,19 +360,40 @@ export async function searchMedicine(query: string): Promise<Medicine[]> {
 /**
  * Søgeresponset er minimalt — kun Navn, Varenummer, Firma, Styrke, Pakning.
  * Pris, ATC, indholdsstof og tilskud får vi kun via detaljer-endpointet.
- * Vi henter derfor fuld detalje for hver hit (parallelt) og — for de
- * øverste hits — også for deres substitutioner, så generiske alternativer
- * fra andre mærker også kommer med selv om de ikke matchede søgeordet.
+ * Vi henter derfor fuld detalje for hver hit. Hits der fejler beholder vi
+ * fra søgeresponset (uden pris) så brugeren ihvertfald ser navnet.
  */
 async function enrichSearchHits(hits: Medicine[]): Promise<Medicine[]> {
-  const MAX_HITS = 30;
+  const MAX_HITS = 25;
+  const CONCURRENCY = 5;
   const limited = hits.slice(0, MAX_HITS);
 
-  // 1) Hent fulde detaljer for hver søgehit
-  const fulls = await Promise.all(
-    limited.map((h) => getMedicine(h.varenummer)),
-  );
-  const enriched = fulls.filter((m): m is Medicine => m !== null);
+  if (DEBUG) {
+    console.log(
+      `[medicinpriser] enrichSearchHits: ${limited.length} hits at berige`,
+    );
+  }
+
+  // 1) Hent fulde detaljer for hver søgehit i batches
+  const enriched: Medicine[] = [];
+  for (let i = 0; i < limited.length; i += CONCURRENCY) {
+    const batch = limited.slice(i, i + CONCURRENCY);
+    const fulls = await Promise.all(
+      batch.map(async (h) => {
+        const full = await getMedicine(h.varenummer);
+        // Hvis detail fejler, fald tilbage til den minimale søge-version
+        return full ?? h;
+      }),
+    );
+    enriched.push(...fulls);
+  }
+
+  if (DEBUG) {
+    const medPris = enriched.filter((m) => m.prisKr !== null).length;
+    console.log(
+      `[medicinpriser] enrichSearchHits: ${enriched.length} berigede, ${medPris} med pris`,
+    );
+  }
 
   // 2) Saml unikke substitutioner fra de øverste hits og hent dem også
   const seen = new Set(enriched.map((m) => m.varenummer));
@@ -384,11 +406,21 @@ async function enrichSearchHits(hits: Medicine[]): Promise<Medicine[]> {
       }
     }
   }
-  const MAX_EXTRA = 25;
-  const extras = await Promise.all(
-    extraVnrs.slice(0, MAX_EXTRA).map((v) => getMedicine(v)),
-  );
-  const extraEnriched = extras.filter((m): m is Medicine => m !== null);
+
+  const MAX_EXTRA = 20;
+  const extraEnriched: Medicine[] = [];
+  const extraSlice = extraVnrs.slice(0, MAX_EXTRA);
+  for (let i = 0; i < extraSlice.length; i += CONCURRENCY) {
+    const batch = extraSlice.slice(i, i + CONCURRENCY);
+    const fulls = await Promise.all(batch.map((v) => getMedicine(v)));
+    for (const f of fulls) if (f) extraEnriched.push(f);
+  }
+
+  if (DEBUG) {
+    console.log(
+      `[medicinpriser] enrichSearchHits: ${extraEnriched.length} ekstra fra substitutioner`,
+    );
+  }
 
   return [...enriched, ...extraEnriched];
 }
