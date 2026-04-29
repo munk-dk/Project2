@@ -195,10 +195,14 @@ export default async function MedicinDetalje({ params }: PageProps) {
 
         <section className="rounded-2xl border-2 border-brand-200 bg-brand-50/30 p-6 sm:p-8">
           <h2 className="text-2xl font-bold text-ink">
-            Billigere alternativer med samme virkning
+            {erBilligste
+              ? "Andre pakninger med samme virkning"
+              : "Billigere alternativer med samme virkning"}
           </h2>
           <p className="mt-1 text-ink-muted">
-            Apoteket må udskifte til disse — bare bed om det billigste.
+            {erBilligste
+              ? "Du har allerede den billigste — disse er dyrere pakninger i samme substitutionsgruppe."
+              : "Apoteket må udskifte til disse — bare bed om det billigste."}
           </p>
 
           {visAlternativer.length === 0 ? (
