@@ -52,7 +52,7 @@ export function MedicineGroup({ group }: Props) {
       {group.alternativer.length > 0 ? (
         <div>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-subtle">
-            {group.original ? "Generiske alternativer" : "Tilgængelige pakninger"}
+            {group.original ? "Andre pakninger med samme virkning" : "Tilgængelige pakninger"}
             <span className="ml-2 font-normal normal-case text-ink-subtle">
               · sorteret billigste først
             </span>
