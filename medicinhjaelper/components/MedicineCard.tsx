@@ -18,10 +18,12 @@ const variantStyles: Record<NonNullable<Props["variant"]>, string> = {
   default: "border-line bg-white",
 };
 
+// "Billigst" og "Original" er meningsfulde for brugeren. "Generisk" er
+// fagsprog uden handlingsværdi — A/B/C-mærket fortæller alt om prisen.
 const variantBadge: Record<NonNullable<Props["variant"]>, string | null> = {
   billigste: "Billigst",
   original: "Original",
-  alternativ: "Generisk",
+  alternativ: null,
   default: null,
 };
 
