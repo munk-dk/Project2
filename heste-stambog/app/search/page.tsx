@@ -140,18 +140,42 @@ async function Results({
   const { hits, statuses } = await runSearch(q, type);
   const merged = mergeHits(hits);
 
+  const errors = statuses.filter((s) => s.status === "error" && s.error);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
         <span>
           <strong className="text-foreground">{merged.length}</strong>{" "}
           {merged.length === 1 ? "match" : "matches"} for &ldquo;{q}&rdquo;
+          <span className="ml-2 text-xs text-muted-foreground">
+            (type: {type})
+          </span>
         </span>
         <span className="text-muted-foreground/60">·</span>
         {statuses.map((s) => (
           <SourcePill key={s.source} status={s} />
         ))}
       </div>
+      {errors.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-medium">Fejl pr. kilde:</p>
+          <ul className="mt-2 space-y-1">
+            {errors.map((s) => (
+              <li key={s.source} className="font-mono text-xs">
+                <strong className="font-semibold">{s.source}:</strong>{" "}
+                {s.error}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-red-700/80">
+            Equinet- og FEI-endpoints/feltnavne er gættet ud fra det offentlige
+            UI. Hvis fejlen handler om HTML-struktur eller manglende tokens,
+            skal scrapen verificeres mod et rigtigt netværksrequest i Chrome
+            DevTools.
+          </p>
+        </div>
+      )}
       {merged.length === 0 ? (
         <NoResults q={q} />
       ) : (

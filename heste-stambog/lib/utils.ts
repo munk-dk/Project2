@@ -72,19 +72,21 @@ export function squish(value: string | null | undefined): string {
 }
 
 // Kategoriser et søgeudtryk hvis brugeren har valgt "all".
-// UELN: 15 cifre med ISO-3 land-prefix.
-// FEI ID: 9-10 alfanumeriske, ofte 3 bogstaver + cifre.
+// UELN: 15 tegn der starter med 3-cifret ISO-landekode. Standarden er kun
+// cifre, men flere registre (også DK-equivalente) bruger varianter med
+// indlejrede bogstaver, fx 208333DW2232349.
+// FEI ID: 3 bogstaver + cifre.
 // Chip: 15 cifre.
-// Dansk ident: typisk DK + cifre, eller 8-11 cifre.
+// Dansk ident: DK + cifre, eller 8-11 cifre.
 export function detectSearchType(
   query: string,
 ): Exclude<SearchType, "all"> {
   const q = query.replace(/\s+/g, "").toUpperCase();
-  if (/^[0-9]{15}$/.test(q)) {
-    // 208=DK, 276=DE, 250=FR, 528=NL, 056=BE, 752=SE, 380=IT, 826=GB, 040=AT
-    if (/^(208|276|250|380|528|056|578|752|826|040|642)/.test(q)) return "ueln";
-    return "chip";
-  }
+  // ISO-3 land-prefixes vi kender til
+  const ISO3 =
+    /^(208|276|250|380|528|056|578|752|826|040|642|724|620|703)/;
+  if (q.length === 15 && ISO3.test(q)) return "ueln";
+  if (/^[0-9]{15}$/.test(q)) return "chip";
   if (/^[A-Z]{3}[0-9]{6,}$/.test(q)) return "feiid";
   if (/^DK[0-9]{6,}$/i.test(q) || /^[0-9]{8,11}$/.test(q)) return "ident";
   return "name";
