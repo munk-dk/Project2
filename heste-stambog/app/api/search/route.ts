@@ -64,11 +64,14 @@ async function runEquinet(
   type: Exclude<SearchType, "all">,
   log: SourceStatus[],
 ): Promise<SourceHit[]> {
-  // Equinet kender kun name, ident og chip.
+  // Equinet kender kun name, ident og chip. UELN med dansk prefix (208)
+  // gemmes typisk som ident hos Equinet, så vi falder tilbage til ident.
   const mapped: EquinetSearchType | null =
     type === "name" || type === "ident" || type === "chip"
       ? type
-      : null;
+      : type === "ueln" && q.toUpperCase().startsWith("208")
+        ? "ident"
+        : null;
   if (!mapped) {
     log.push({ source: "equinet", status: "skipped", count: 0 });
     return [];

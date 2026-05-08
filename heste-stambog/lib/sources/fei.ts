@@ -14,7 +14,7 @@
 // en søgning, kopier form-bodyen og afstem feltnavnene nedenfor.
 
 import * as cheerio from "cheerio";
-import { buildCookieHeader, defaultUserAgent, squish } from "../utils";
+import { browserishHeaders, buildCookieHeader, squish } from "../utils";
 import type { SourceHit } from "../types";
 
 const FEI_BASE = process.env.FEI_BASE_URL ?? "https://data.fei.org";
@@ -39,11 +39,7 @@ interface AspNetSession {
 
 async function bootstrap(): Promise<AspNetSession> {
   const res = await fetch(SEARCH_URL, {
-    headers: {
-      "User-Agent": defaultUserAgent(),
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
+    headers: browserishHeaders(),
     redirect: "follow",
     cache: "no-store",
   });
@@ -132,12 +128,14 @@ export async function searchFei(opts: FeiSearchOptions): Promise<SourceHit[]> {
   const res = await fetch(SEARCH_URL, {
     method: "POST",
     headers: {
-      "User-Agent": defaultUserAgent(),
+      ...browserishHeaders(SEARCH_URL),
       "Content-Type": "application/x-www-form-urlencoded",
       Cookie: session.cookieHeader,
-      Referer: SEARCH_URL,
       Origin: FEI_BASE,
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "same-origin",
+      "Sec-Fetch-User": "?1",
     },
     body,
     redirect: "follow",
@@ -222,10 +220,7 @@ export function parseFeiSearchResults(html: string): SourceHit[] {
 async function fetchFeiHorse(feiId: string): Promise<SourceHit | null> {
   const url = `${FEI_BASE}/Horse/Detail.aspx?id=${encodeURIComponent(feiId)}`;
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": defaultUserAgent(),
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
+    headers: browserishHeaders(),
     redirect: "follow",
     cache: "no-store",
   });

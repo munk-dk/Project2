@@ -26,8 +26,15 @@ async function runSearch(
   type: Exclude<SearchType, "all">,
 ): Promise<{ hits: SourceHit[]; statuses: SourceStatus[] }> {
   const statuses: SourceStatus[] = [];
+  // Equinet håndterer name/ident/chip direkte. For UELN routes vi til ident
+  // hvis prefixet er dansk (208) — Equinets ident-felt gemmer hele UELN'en
+  // som-er, så søgeresultatet er det samme.
   const equinetType: EquinetSearchType | null =
-    type === "name" || type === "ident" || type === "chip" ? type : null;
+    type === "name" || type === "ident" || type === "chip"
+      ? type
+      : type === "ueln" && q.toUpperCase().startsWith("208")
+        ? "ident"
+        : null;
 
   const tasks: Promise<SourceHit[]>[] = [];
 
