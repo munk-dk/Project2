@@ -228,94 +228,115 @@ async function fetchSearchHtml(
   return { html, finalUrl: target };
 }
 
-// Parse den returnerede HTML. APEX genererer en interaktiv rapport-tabel.
-// Vi accepterer at struktur kan ændres, og forsøger at læse <table> med en
-// header-række der matcher de kendte kolonnenavne.
+// Parse Equinets resultattabel.
+//
+// APEX-siden indeholder mange <table>'er (form-layout, header, sidebar osv.),
+// så header-baseret tabel-detektion gav falske positives. Den robuste
+// signatur er at hest-rækker har et detalje-link med href-pattern
+// "f?p=1000:3:...:P3_HEST_ID,P3_HEST_NAVN:<id>,<navn>". Vi finder alle
+// sådanne links, går op til deres <tr> og læser cellerne der.
+const DETAIL_LINK_RE =
+  /f\?p=1000:3:[^"']*P3_HEST_ID,P3_HEST_NAVN:([^,]+),([^"'&)]+)/i;
+
 export function parseEquinetResults(html: string): SourceHit[] {
-  const $ = cheerio.load(html);
+  // Fjern <script>-blokke så indholdet ikke forurener tekstaflæsninger.
+  const cleaned = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+  const $ = cheerio.load(cleaned);
   const hits: SourceHit[] = [];
 
+  // Find resultattabellen: den indeholder mindst én <a> med detalje-href.
   const tables = $("table").toArray();
-  const target = tables.find((el) => {
-    const headers = $(el)
-      .find("th, thead td")
+  const resultsTable = tables.find((table) => {
+    return $(table)
+      .find("a[href]")
       .toArray()
-      .map((th) => squish($(th).text()).toLowerCase());
-    return headers.some(
-      (h) =>
-        h.includes("ident") ||
-        h.includes("navn") ||
-        h.includes("chip") ||
-        h.includes("hest"),
-    );
+      .some((a) => DETAIL_LINK_RE.test(String($(a).attr("href") ?? "")));
   });
-  if (!target) return hits;
+  if (!resultsTable) return hits;
 
-  const headers = $(target)
-    .find("th, thead td")
-    .toArray()
-    .map((th) => squish($(th).text()).toLowerCase());
-
-  $(target)
-    .find("tbody tr, tr")
-    .each((_, tr) => {
-      const cells = $(tr)
-        .find("td")
-        .map((_, td) => squish($(td).text()))
-        .get();
-      if (cells.length === 0) return;
-
-      const get = (...names: string[]): string | undefined => {
-        for (const name of names) {
-          const idx = headers.findIndex((h) => h.includes(name));
-          if (idx >= 0 && cells[idx]) return cells[idx];
-        }
-        return undefined;
-      };
-
-      const ident = get("ident") ?? cells[0];
-      const name = get("navn", "name") ?? cells[1] ?? "";
-      if (!name && !ident) return;
-
-      const birthRaw = get("født", "fodt", "year");
-      const birthYear = birthRaw ? extractYear(birthRaw) : undefined;
-      const sexRaw = get("køn", "kon", "sex");
-      const chip = get("chip");
-      const studbook = get("stambog", "studbook");
-
-      const link = $(tr).find("a").first().attr("href");
-      const url = link ? new URL(link, EQUINET_BASE).toString() : undefined;
-
-      hits.push({
-        source: "equinet",
-        rawId: ident,
-        name,
-        birthYear,
-        sex: sexFromDanishCode(sexRaw),
-        chipNumber: chip,
-        danishIdent: ident,
-        studbook,
-        country: "DK",
-        url,
-      });
+  // Læs headers (lowercase) i kolonnernes rækkefølge.
+  const headers: string[] = [];
+  $(resultsTable)
+    .find("tr")
+    .first()
+    .find("th, td")
+    .each((_, cell) => {
+      headers.push(squish($(cell).text()).toLowerCase());
     });
+
+  const colIndex = (...names: string[]): number => {
+    for (const name of names) {
+      const idx = headers.findIndex((h) => h.includes(name));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  const idxIdent = colIndex("ident");
+  const idxNavn = colIndex("navn");
+  const idxAvlsforbund = colIndex("avlsforbund", "stambog");
+  const idxLand = colIndex("land");
+
+  // Iterér rækker og pluk dem der har et detalje-link.
+  const seen = new Set<string>();
+  $(resultsTable).find("tr").each((_, tr) => {
+    const $tr = $(tr);
+    const detailHref = $tr
+      .find("a[href]")
+      .toArray()
+      .map((a) => String($(a).attr("href") ?? ""))
+      .find((h) => DETAIL_LINK_RE.test(h));
+    if (!detailHref) return;
+
+    const match = detailHref.match(DETAIL_LINK_RE);
+    if (!match) return;
+    const horseId = decodeURIComponent(match[1]);
+    const horseName = decodeURIComponent(match[2]);
+
+    const cells = $tr
+      .find("td")
+      .toArray()
+      .map((td) => squish($(td).text()));
+    if (cells.length === 0) return;
+
+    const ident =
+      (idxIdent >= 0 ? cells[idxIdent] : undefined) ?? cells[0] ?? "";
+    const name =
+      (idxNavn >= 0 ? cells[idxNavn] : undefined) ?? horseName;
+    const studbook =
+      idxAvlsforbund >= 0 ? cells[idxAvlsforbund] : undefined;
+    const land = idxLand >= 0 ? cells[idxLand] : "Danmark";
+
+    const dedupKey = ident || horseId;
+    if (seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+
+    const url = detailHref.startsWith("http")
+      ? detailHref
+      : new URL(detailHref, EQUINET_BASE).toString();
+
+    hits.push({
+      source: "equinet",
+      rawId: ident,
+      name,
+      danishIdent: ident,
+      studbook: studbook || undefined,
+      country: countryToIso(land),
+      url,
+    });
+  });
 
   return hits;
 }
 
-function extractYear(value: string): number | undefined {
-  const m = value.match(/\b(19|20)\d{2}\b/);
-  return m ? Number(m[0]) : undefined;
-}
-
-function sexFromDanishCode(
-  value: string | null | undefined,
-): SourceHit["sex"] {
+function countryToIso(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const v = value.trim().toLowerCase();
-  if (v.startsWith("hingst") || v === "h" || v === "s") return "stallion";
-  if (v.startsWith("vall") || v === "v" || v === "g") return "gelding";
-  if (v.startsWith("hop") || v === "ho" || v === "m" || v === "f")
-    return "mare";
-  return undefined;
+  if (v.startsWith("danmark") || v === "dk") return "DK";
+  if (v.startsWith("tysk") || v === "de") return "DE";
+  if (v.startsWith("nederland") || v.startsWith("holland") || v === "nl")
+    return "NL";
+  if (v.startsWith("svensk") || v === "se") return "SE";
+  if (v.startsWith("norsk") || v === "no") return "NO";
+  return value;
 }
+
