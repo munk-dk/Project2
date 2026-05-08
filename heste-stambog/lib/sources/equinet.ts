@@ -112,6 +112,22 @@ async function bootstrap(): Promise<ApexFormState> {
 export async function searchEquinet(
   opts: EquinetSearchOptions,
 ): Promise<SourceHit[]> {
+  const { html } = await fetchSearchHtml(opts);
+  return parseEquinetResults(html);
+}
+
+// Returnerer både den parsede liste og den rå HTML — bruges af /api/sources/equinet
+// med ?debug=1 så vi kan diagnosticere hvad der faktisk kommer tilbage.
+export async function searchEquinetWithRaw(
+  opts: EquinetSearchOptions,
+): Promise<{ hits: SourceHit[]; html: string; finalUrl: string }> {
+  const { html, finalUrl } = await fetchSearchHtml(opts);
+  return { hits: parseEquinetResults(html), html, finalUrl };
+}
+
+async function fetchSearchHtml(
+  opts: EquinetSearchOptions,
+): Promise<{ html: string; finalUrl: string }> {
   const session = await bootstrap();
 
   const textName = session.itemNameById.get("P2_SOEGETEKST");
@@ -135,17 +151,17 @@ export async function searchEquinet(
       body.append(name, CRITERION_VALUES[opts.type]);
       critOverridden = true;
     } else if (name === "p_request") {
-      // APEX-knappens onclick sætter p_request='SUBMIT' før submit.
       body.append(name, "SUBMIT");
       requestOverridden = true;
     } else {
       body.append(name, value);
     }
   }
-  // Hvis p_request slet ikke var i form'en, tilføj den.
   if (!requestOverridden) body.append("p_request", "SUBMIT");
 
-  const res = await fetch(ACCEPT_URL, {
+  // Manuelt redirect-flow: APEX sætter typisk nye cookies på 302-svaret,
+  // som bliver tabt hvis vi lader fetch følge redirectet automatisk.
+  const postRes = await fetch(ACCEPT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -157,16 +173,59 @@ export async function searchEquinet(
         "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     },
     body,
+    redirect: "manual",
+    cache: "no-store",
+  });
+
+  // Hvis POSTet IKKE er en redirect (fx en fejlside), så læs HTML direkte.
+  if (postRes.status >= 200 && postRes.status < 300) {
+    const html = await postRes.text();
+    return { html, finalUrl: ACCEPT_URL };
+  }
+
+  if (postRes.status < 300 || postRes.status >= 400) {
+    throw new Error(
+      `Equinet søgning fejlede: status ${postRes.status} ${postRes.statusText}`,
+    );
+  }
+
+  const location = postRes.headers.get("location");
+  if (!location) {
+    throw new Error(
+      `Equinet returnerede ${postRes.status} uden Location-header.`,
+    );
+  }
+  const target = new URL(location, EQUINET_BASE).toString();
+
+  // Saml cookies: dem fra bootstrap + nye fra accept-svaret.
+  const newCookieRaw =
+    typeof postRes.headers.getSetCookie === "function"
+      ? postRes.headers.getSetCookie()
+      : (postRes.headers.get("set-cookie") ?? "");
+  const newCookieHeader = buildCookieHeader(newCookieRaw);
+  const cookieHeader = [session.cookieHeader, newCookieHeader]
+    .filter(Boolean)
+    .join("; ");
+
+  const getRes = await fetch(target, {
+    method: "GET",
+    headers: {
+      "User-Agent": defaultUserAgent(),
+      Cookie: cookieHeader,
+      Referer: SEARCH_PAGE,
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    },
     redirect: "follow",
     cache: "no-store",
   });
-  if (!res.ok) {
+  if (!getRes.ok) {
     throw new Error(
-      `Equinet søgning fejlede med status ${res.status} ${res.statusText}`,
+      `Equinet resultatside fejlede: status ${getRes.status} ${getRes.statusText}`,
     );
   }
-  const html = await res.text();
-  return parseEquinetResults(html);
+  const html = await getRes.text();
+  return { html, finalUrl: target };
 }
 
 // Parse den returnerede HTML. APEX genererer en interaktiv rapport-tabel.
