@@ -1,0 +1,280 @@
+[
+  {
+    "id": "seed-dk-fredericia",
+    "name": "Fredericia Supercharger",
+    "address": "Strevelinsvej 15, 7000 Fredericia",
+    "city": "Fredericia",
+    "country": "DK",
+    "lat": 55.5657,
+    "lng": 9.7516,
+    "connectorCount": 16,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-dk-fredericia",
+      "summaryText": "Solidt E45-stop til en pause på 30 minutter. Der er dagligvarer og en bager inden for få minutters gang, så man kan nå både kaffe og lidt til frokost. Området er lidt trafikeret og uden nævneværdig grøn plet, så det er mere et effektivt end hyggeligt stop.",
+      "tags": ["kaffe", "frokost", "indkoeb"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-fa-1", "stationId": "seed-dk-fredericia", "name": "Lidl", "category": "supermarket", "lat": 55.5661, "lng": 9.7529, "distanceMeters": 180, "rating": 4.2, "userRatingsTotal": 640, "source": "placeholder" },
+      { "id": "ph-fa-2", "stationId": "seed-dk-fredericia", "name": "Lagkagehuset", "category": "bakery", "lat": 55.5652, "lng": 9.7508, "distanceMeters": 220, "rating": 4.4, "userRatingsTotal": 210, "source": "placeholder" },
+      { "id": "ph-fa-3", "stationId": "seed-dk-fredericia", "name": "Café Kridt", "category": "cafe", "lat": 55.5666, "lng": 9.7521, "distanceMeters": 260, "rating": 4.1, "userRatingsTotal": 95, "source": "placeholder" },
+      { "id": "ph-fa-4", "stationId": "seed-dk-fredericia", "name": "Offentligt toilet", "category": "toilet", "lat": 55.5659, "lng": 9.7514, "distanceMeters": 90, "rating": null, "userRatingsTotal": null, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-dk-kolding",
+    "name": "Kolding Supercharger",
+    "address": "Skovvangen 42, 6000 Kolding",
+    "city": "Kolding",
+    "country": "DK",
+    "lat": 55.4904,
+    "lng": 9.4721,
+    "connectorCount": 12,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-dk-kolding",
+      "summaryText": "Roligt stop tæt på et grønt område, hvor man kan lufte hund eller strække ben mens bilen lader. Der er en café i kort gåafstand, men begrænset med egentlig frokost. God til en afslappet pause frem for et hurtigt madstop.",
+      "tags": ["kaffe", "hundepause", "familiepause"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-ko-1", "stationId": "seed-dk-kolding", "name": "Marielundskoven", "category": "park", "lat": 55.4912, "lng": 9.4735, "distanceMeters": 210, "rating": 4.7, "userRatingsTotal": 380, "source": "placeholder" },
+      { "id": "ph-ko-2", "stationId": "seed-dk-kolding", "name": "Café Bruncho", "category": "cafe", "lat": 55.4898, "lng": 9.4712, "distanceMeters": 250, "rating": 4.3, "userRatingsTotal": 150, "source": "placeholder" },
+      { "id": "ph-ko-3", "stationId": "seed-dk-kolding", "name": "Legeplads Marielund", "category": "playground", "lat": 55.4915, "lng": 9.4728, "distanceMeters": 240, "rating": null, "userRatingsTotal": null, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-dk-vejle-south",
+    "name": "Vejle South Supercharger",
+    "address": "Godthåbsvej 55, 7100 Vejle",
+    "city": "Vejle",
+    "country": "DK",
+    "lat": 55.6889,
+    "lng": 9.5342,
+    "connectorCount": 20,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-dk-vejle-south",
+      "summaryText": "Stort stop lige ved motorvejen med flere spisesteder og et supermarked inden for gåafstand — nemt at få både kaffe, frokost og lidt indkøb med. Kan blive travlt midt på dagen. Praktisk og veludstyret, men uden meget ro eller grønt.",
+      "tags": ["kaffe", "frokost", "indkoeb", "arbejde"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-ve-1", "stationId": "seed-dk-vejle-south", "name": "Rema 1000", "category": "supermarket", "lat": 55.6895, "lng": 9.5355, "distanceMeters": 200, "rating": 4.3, "userRatingsTotal": 720, "source": "placeholder" },
+      { "id": "ph-ve-2", "stationId": "seed-dk-vejle-south", "name": "Sunset Boulevard", "category": "restaurant", "lat": 55.6882, "lng": 9.5330, "distanceMeters": 240, "rating": 3.9, "userRatingsTotal": 410, "source": "placeholder" },
+      { "id": "ph-ve-3", "stationId": "seed-dk-vejle-south", "name": "Espresso House", "category": "cafe", "lat": 55.6884, "lng": 9.5348, "distanceMeters": 180, "rating": 4.0, "userRatingsTotal": 260, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-dk-odense",
+    "name": "Odense Supercharger",
+    "address": "Ørbækvej 75, 5220 Odense",
+    "city": "Odense",
+    "country": "DK",
+    "lat": 55.3705,
+    "lng": 10.4299,
+    "connectorCount": 16,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-dk-odense",
+      "summaryText": "Bymæssigt stop med god variation af spisesteder og et supermarked tæt på. Egner sig fint hvis man vil sidde ned og arbejde eller spise ordentligt frem for bare at tanke kaffe. Begrænset med grønne områder, så mindre oplagt til en hundepause.",
+      "tags": ["frokost", "indkoeb", "arbejde"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-od-1", "stationId": "seed-dk-odense", "name": "Netto", "category": "supermarket", "lat": 55.3712, "lng": 10.4310, "distanceMeters": 190, "rating": 4.1, "userRatingsTotal": 540, "source": "placeholder" },
+      { "id": "ph-od-2", "stationId": "seed-dk-odense", "name": "Restaurant Nomiya", "category": "restaurant", "lat": 55.3698, "lng": 10.4288, "distanceMeters": 260, "rating": 4.5, "userRatingsTotal": 330, "source": "placeholder" },
+      { "id": "ph-od-3", "stationId": "seed-dk-odense", "name": "Baresso Coffee", "category": "cafe", "lat": 55.3708, "lng": 10.4305, "distanceMeters": 150, "rating": 4.2, "userRatingsTotal": 180, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-dk-taastrup",
+    "name": "Taastrup (København) Supercharger",
+    "address": "Cityringen 4, 2630 Taastrup",
+    "city": "Taastrup",
+    "country": "DK",
+    "lat": 55.6512,
+    "lng": 12.2998,
+    "connectorCount": 24,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-dk-taastrup",
+      "summaryText": "Stort stop ved et butiks- og indkøbsområde med masser af muligheder for mad, kaffe og indkøb — velegnet hvis man vil nå flere ærinder på én pause. Til gengæld travlt og trafikeret, og der er ikke meget grønt til en rolig pause.",
+      "tags": ["kaffe", "frokost", "indkoeb", "arbejde"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-ta-1", "stationId": "seed-dk-taastrup", "name": "City 2", "category": "supermarket", "lat": 55.6519, "lng": 12.3012, "distanceMeters": 230, "rating": 4.3, "userRatingsTotal": 12800, "source": "placeholder" },
+      { "id": "ph-ta-2", "stationId": "seed-dk-taastrup", "name": "Joe & The Juice", "category": "cafe", "lat": 55.6508, "lng": 12.2989, "distanceMeters": 170, "rating": 4.1, "userRatingsTotal": 220, "source": "placeholder" },
+      { "id": "ph-ta-3", "stationId": "seed-dk-taastrup", "name": "Halifax Burger", "category": "restaurant", "lat": 55.6515, "lng": 12.3004, "distanceMeters": 210, "rating": 4.4, "userRatingsTotal": 610, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-de-kiel",
+    "name": "Kiel-Moorsee Supercharger",
+    "address": "Radewisch 160, 24145 Kiel",
+    "city": "Kiel",
+    "country": "DE",
+    "lat": 54.2582,
+    "lng": 10.1345,
+    "connectorCount": 12,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-de-kiel",
+      "summaryText": "Praktisk stop i udkanten af Kiel med et supermarked og en bager tæt på til en hurtig kaffe og lidt proviant. Roligt beliggende, men uden større grønne områder. Fint til en kort, effektiv pause på vej mod eller fra færgerne.",
+      "tags": ["kaffe", "indkoeb"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-ki-1", "stationId": "seed-de-kiel", "name": "EDEKA", "category": "supermarket", "lat": 54.2589, "lng": 10.1358, "distanceMeters": 200, "rating": 4.4, "userRatingsTotal": 890, "source": "placeholder" },
+      { "id": "ph-ki-2", "stationId": "seed-de-kiel", "name": "Bäckerei Günther", "category": "bakery", "lat": 54.2576, "lng": 10.1338, "distanceMeters": 190, "rating": 4.2, "userRatingsTotal": 150, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-de-luebeck",
+    "name": "Lübeck-Stockelsdorf Supercharger",
+    "address": "Stockelsdorfer Str. 1, 23554 Lübeck",
+    "city": "Lübeck",
+    "country": "DE",
+    "lat": 53.8756,
+    "lng": 10.6688,
+    "connectorCount": 12,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-de-luebeck",
+      "summaryText": "Velbeliggende stop med både supermarked, bager og en café inden for kort gang — nemt at få dækket kaffe, frokost og indkøb. Der er også et grønt område i nærheden, som fungerer til at strække ben eller lufte hund. Alsidigt pausested.",
+      "tags": ["kaffe", "frokost", "indkoeb", "hundepause"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-lu-1", "stationId": "seed-de-luebeck", "name": "REWE", "category": "supermarket", "lat": 53.8762, "lng": 10.6701, "distanceMeters": 210, "rating": 4.3, "userRatingsTotal": 1120, "source": "placeholder" },
+      { "id": "ph-lu-2", "stationId": "seed-de-luebeck", "name": "Café Niederegger", "category": "cafe", "lat": 53.8749, "lng": 10.6679, "distanceMeters": 240, "rating": 4.6, "userRatingsTotal": 480, "source": "placeholder" },
+      { "id": "ph-lu-3", "stationId": "seed-de-luebeck", "name": "Stadtpark Stockelsdorf", "category": "park", "lat": 53.8764, "lng": 10.6695, "distanceMeters": 220, "rating": 4.5, "userRatingsTotal": 260, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-de-hamburg-heimfeld",
+    "name": "Hamburg-Heimfeld Supercharger",
+    "address": "Heimfelder Straße 123, 21075 Hamburg",
+    "city": "Hamburg",
+    "country": "DE",
+    "lat": 53.4589,
+    "lng": 9.9503,
+    "connectorCount": 16,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-de-hamburg-heimfeld",
+      "summaryText": "Bynært stop i Hamburg med café og spisesteder tæt på — fint hvis man vil sidde ned med en kaffe eller frokost. Ligger i et boligområde, så det er rimeligt roligt, men parkering kan være presset i myldretiden.",
+      "tags": ["kaffe", "frokost"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-hh-1", "stationId": "seed-de-hamburg-heimfeld", "name": "Café Extrablatt", "category": "cafe", "lat": 53.4595, "lng": 9.9515, "distanceMeters": 220, "rating": 4.1, "userRatingsTotal": 340, "source": "placeholder" },
+      { "id": "ph-hh-2", "stationId": "seed-de-hamburg-heimfeld", "name": "Pizzeria Da Vinci", "category": "restaurant", "lat": 53.4583, "lng": 9.9494, "distanceMeters": 200, "rating": 4.0, "userRatingsTotal": 280, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-de-hamburg-wandsbek",
+    "name": "Hamburg-Wandsbek Supercharger",
+    "address": "Helbingtwiete 4, 22047 Hamburg",
+    "city": "Hamburg",
+    "country": "DE",
+    "lat": 53.5758,
+    "lng": 10.0808,
+    "connectorCount": 20,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-de-hamburg-wandsbek",
+      "summaryText": "Centralt Hamburg-stop ved et handelsområde med flere spisesteder, kaffe og indkøb lige ved hånden — godt til at nå flere ting på én pause. Til gengæld travlt og trafikeret, så ikke det oplagte valg hvis man søger ro.",
+      "tags": ["kaffe", "frokost", "indkoeb"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-wa-1", "stationId": "seed-de-hamburg-wandsbek", "name": "Wandsbek Quarree", "category": "supermarket", "lat": 53.5765, "lng": 10.0821, "distanceMeters": 230, "rating": 4.2, "userRatingsTotal": 9400, "source": "placeholder" },
+      { "id": "ph-wa-2", "stationId": "seed-de-hamburg-wandsbek", "name": "Starbucks", "category": "cafe", "lat": 53.5752, "lng": 10.0799, "distanceMeters": 190, "rating": 4.0, "userRatingsTotal": 520, "source": "placeholder" },
+      { "id": "ph-wa-3", "stationId": "seed-de-hamburg-wandsbek", "name": "Vapiano", "category": "restaurant", "lat": 53.5761, "lng": 10.0814, "distanceMeters": 180, "rating": 3.8, "userRatingsTotal": 610, "source": "placeholder" }
+    ]
+  },
+  {
+    "id": "seed-de-oldenburg-holstein",
+    "name": "Oldenburg in Holstein Supercharger",
+    "address": "Kieler Chaussee 6, 23758 Oldenburg in Holstein",
+    "city": "Oldenburg in Holstein",
+    "country": "DE",
+    "lat": 54.2913,
+    "lng": 10.8781,
+    "connectorCount": 8,
+    "connectorType": "Tesla / CCS",
+    "powerKw": 250,
+    "operator": "Tesla",
+    "source": "seed",
+    "summary": {
+      "stationId": "seed-de-oldenburg-holstein",
+      "summaryText": "Mindre stop med et supermarked tæt på til en hurtig kaffe og lidt proviant. Sparsomt med spisesteder og grønne områder, så det er mest et praktisk ladestop end et sted at slå sig ned. Fint til en kort pause på Vogelfluglinie-ruten.",
+      "tags": ["kaffe", "indkoeb"],
+      "model": "placeholder",
+      "promptVersion": "sample",
+      "generatedBy": "placeholder",
+      "generatedAt": "2026-08-03T00:00:00.000Z"
+    },
+    "pois": [
+      { "id": "ph-ol-1", "stationId": "seed-de-oldenburg-holstein", "name": "ALDI", "category": "supermarket", "lat": 54.2920, "lng": 10.8793, "distanceMeters": 200, "rating": 4.1, "userRatingsTotal": 430, "source": "placeholder" },
+      { "id": "ph-ol-2", "stationId": "seed-de-oldenburg-holstein", "name": "Bäckerei Steinbeck", "category": "bakery", "lat": 54.2907, "lng": 10.8772, "distanceMeters": 190, "rating": 4.3, "userRatingsTotal": 120, "source": "placeholder" }
+    ]
+  }
+]

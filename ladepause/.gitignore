@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# local database (operational store, rebuilt by the pipeline scripts)
+/data/ladepause.db
+/data/ladepause.db-journal
+/data/ladepause.db-wal
+/data/ladepause.db-shm
+
+# env
+.env
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+*.pem
+/coverage
+*.tsbuildinfo

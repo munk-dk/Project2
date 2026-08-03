@@ -1,0 +1,39 @@
+{
+  "name": "ladepause",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ladepause PoC — gode pausesteder ved Tesla Superchargere i DK + Nordtyskland",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "pipeline:stations": "tsx scripts/01-fetch-stations.ts",
+    "pipeline:pois": "tsx scripts/02-fetch-pois.ts",
+    "pipeline:summaries": "tsx scripts/03-generate-summaries.ts",
+    "pipeline:all": "npm run pipeline:stations && npm run pipeline:pois && npm run pipeline:summaries",
+    "pipeline:export": "tsx scripts/04-export-sample.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "better-sqlite3": "^11.8.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.16.10",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
